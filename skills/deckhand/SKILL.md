@@ -1,0 +1,102 @@
+---
+name: deckhand
+description: "Use this skill any time a .pptx file is involved in any way — as input, output, or both. This includes reading, analyzing, or extracting content from presentations; editing text, images, styles, or layout of existing decks; creating new slides, shapes, tables, or pictures; reordering, duplicating, or merging slides across decks; and verifying decks visually. Trigger whenever the user mentions a deck, slides, a presentation, or a .pptx filename."
+---
+
+# deckhand — agent-native PPTX manipulation
+
+One tool does everything: `scripts/deck.py`. You write a JSON *patch* describing your edits; deck.py validates and executes it atomically, then lints the result. You never need to open slide XML for routine work.
+
+**Golden rules** (the tool enforces and repeats these):
+- ALL slide indices are 0-based, everywhere. Shapes are addressed by stable native ids (`s12`) or unique shape name.
+- Positions and sizes are inches from the slide's top-left.
+- Patches are atomic: every op is pre-validated (all errors reported at once, with the slide's real shape listing), then applied all-or-nothing.
+
+**Full reference**: `python scripts/deck.py docs` — prints every op with semantics and recipes; needs no file. Read it before writing your first patch.
+
+## The edit loop
+
+```bash
+# 1. READ — cheap orientation first, full JSON only when about to write a patch
+python scripts/deck.py deck.pptx inspect --slide 3 --brief   # one line per shape
+python scripts/deck.py deck.pptx inspect --slide 3           # full JSON: text+formatting, image rIds, geometry, issues
+python scripts/deck.py deck.pptx inspect --issues            # only shapes with geometric problems
+
+# 2. WRITE — one patch, many ops, atomic; chain repair + render of touched slides
+python scripts/deck.py deck.pptx apply patch.json -o out.pptx --fix --render img/
+
+# 3. VERIFY — look at what you changed
+#    (render names files slide-<0-based-index>.jpg to match inspect)
+python scripts/deck.py deck.pptx diff out.pptx               # structural changelog, no rendering
+```
+
+`--fix` runs deterministic geometry repair on the slides you touched (grows/shrinks/nudges overflowing text; never auto-moves pictures). Its *residue* report lists what still needs judgment, with a suggested op. Always look at the rendered image before declaring success.
+
+## Patch ops at a glance
+
+```json
+{"ops": [
+  {"op":"set-text",    "slide":3, "shape":"s12", "text":["Title", "Subtitle"]},
+  {"op":"swap-image",  "slide":3, "shape":"s9",  "image":"/abs/new.png"},
+  {"op":"swap-image",  "media":"image13.png",    "image":"/abs/logo.png"},
+  {"op":"replace-text","scope":"deck", "from":"Old Name", "to":"New Name"},
+  {"op":"set-notes",   "slide":3, "notes":"speaker notes"},
+  {"op":"move",        "slide":3, "shape":"s12", "to":[1.0,2.5]},
+  {"op":"resize",      "slide":3, "shape":"s12", "size":[4.0,1.5]},
+  {"op":"set-style",   "slide":3, "shape":"s12", "font_size":18, "fill":"0B3D3A", "rotation":6},
+  {"op":"delete",      "slide":3, "shape":"s12"},
+  {"op":"duplicate",   "slide":3, "shape":"s12", "offset":[0,1.2], "text":["Fourth pillar"]},
+  {"op":"copy-shape",  "from_slide":8, "shape":"s12", "slide":3, "at":[1.0,2.0]},
+  {"op":"reorder",     "slide":3, "shape":"s12", "z":"back"},
+  {"op":"add-shape",   "slide":3, "kind":"textbox", "at":[1,2], "size":[4,1.5], "text":["…"], "name":"card"},
+  {"op":"add-picture", "slide":3, "image":"/abs/img.png", "at":[1,2], "width":4},
+  {"op":"add-table",   "slide":3, "at":[1,2], "size":[8,3], "rows":[["A","B"],["1","2"]]},
+  {"op":"add-slide",   "layout":"Blank", "at":5},
+  {"op":"add-row",     "slide":3, "shape":"s12", "cells":["a","b"]},
+  {"op":"delete-col",  "slide":3, "shape":"s12", "col":1}
+]}
+```
+
+Key semantics (details in `docs`):
+- **set-text inherits formatting**: new paragraph *i* inherits ALL formatting of old paragraph *i* — pass plain strings for routine replacement. Pass objects to override (`{"text":"Big","font_size":28}`), or `"runs"` for mixed in-paragraph formatting. Table cells: add `"cell":[row,col]`.
+- **Prefer duplicate/copy-shape over add-shape** when a styled donor exists — new shapes start from PowerPoint defaults, not the deck's design language.
+- **add-shape `"name"`** lets later ops in the same patch target the shape it creates.
+- Keep new text comparable in length to the old, or let `fix` repair the overflow.
+
+## Deck structure (subcommands, not patch ops)
+
+```bash
+python scripts/deck.py deck.pptx slides 0,3,3,5 -o out.pptx        # keep these, in this order; repeat = duplicate
+python scripts/deck.py deck.pptx merge module.pptx --slides 0,2 --at 12 -o out.pptx
+python scripts/deck.py deck.pptx merge --list-layouts              # choose a layout for imported slides
+```
+
+## Building a deck from a template (the human workflow)
+
+1. `slides` the template down to the target slide sequence (duplicating repeated layouts).
+2. `merge` in any reusable modules.
+3. One `replace-text` patch for global renames (scope `master` catches footers).
+4. Per-slide patches: `inspect --slide N` for shape ids, then `set-text` / `swap-image` only what you name — nothing else is touched.
+5. `apply --fix --render img/` and look at every touched slide.
+
+## Verification
+
+- `render -o img/ --slide 3,7` — JPGs named `slide-<index>.jpg`; `--crop l,t,w,h --scale 2` zooms a region (inches, same coordinates as inspect). Hidden slides render only when explicitly listed.
+- `diff other.pptx` — text/geometry/media/notes changelog without rendering.
+- Thumbnail grids for whole-deck review: `python scripts/thumbnail.py deck.pptx --cols 4` (optional second arg = output filename prefix).
+
+## Escape hatch
+
+When no op expresses the change (animations, exotic effects):
+
+```bash
+python scripts/deck.py deck.pptx xml get --slide 5 -o slide5.xml   # pretty-printed, editable
+python scripts/deck.py deck.pptx xml set slide5.xml --slide 5 -o out.pptx   # parse-checked, lint-checked
+```
+
+Out of scope by design (use the escape hatch or PowerPoint itself): creating native charts, animations, transitions, embedded video/OLE, merged table cells.
+
+## Dependencies
+
+- Python 3.9+ with `python-pptx` and `Pillow` (`pip install python-pptx Pillow`)
+- For `render` and thumbnails: LibreOffice (`soffice`) and Poppler (`pdftoppm`)

@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>deckhand — agent-native PowerPoint manipulation</title>
+<meta name="description" content="One CLI lets AI agents inspect, edit, create, and verify .pptx files with the fidelity of a human operator. MIT licensed, built by Every Consulting.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,300..700;1,8..60,300..700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink:        #0e0c09;
+    --ink-2:      #14110d;
+    --panel:      #161310;
+    --panel-2:    #1b1713;
+    --line:       #2b251c;
+    --line-soft:  #221d16;
+    --cream:      #ece3d0;
+    --cream-dim:  #c9bda6;
+    --muted:      #968b76;
+    --faint:      #6e6553;
+    --amber:      #e8a33d;
+    --amber-soft: #c98f3a;
+    --sage:       #a4bd80;
+    --terracotta: #d98a6c;
+    --red:        #e06c5f;
+    --steel:      #8fa3ad;
+    --maxw: 1120px;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    --serif: "Source Serif 4", Georgia, serif;
+    --display: "Fraunces", Georgia, serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--ink);
+    color: var(--cream);
+    font-family: var(--serif);
+    font-size: 18px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  ::selection { background: var(--amber); color: var(--ink); }
+
+  /* ---------- atmosphere ---------- */
+  .grain {
+    position: fixed; inset: -50%; z-index: 50; pointer-events: none;
+    width: 200%; height: 200%;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 250 250' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.035;
+    animation: grain 9s steps(10) infinite;
+  }
+  @keyframes grain {
+    0%,100% { transform: translate(0,0); } 10% { transform: translate(-3%,-5%); }
+    20% { transform: translate(-7%,2%); } 30% { transform: translate(4%,-9%); }
+    40% { transform: translate(-2%,8%); } 50% { transform: translate(-7%,3%); }
+    60% { transform: translate(8%,0%); } 70% { transform: translate(0%,6%); }
+    80% { transform: translate(2%,-7%); } 90% { transform: translate(-5%,5%); }
+  }
+
+  .glow {
+    position: absolute; top: -300px; left: 50%; transform: translateX(-50%);
+    width: 1100px; height: 700px; pointer-events: none;
+    background: radial-gradient(ellipse at center, rgba(232,163,61,0.07) 0%, transparent 62%);
+  }
+
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 28px; }
+
+  /* ---------- type helpers ---------- */
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 12px; font-weight: 500;
+    letter-spacing: 0.22em; text-transform: uppercase;
+    color: var(--amber);
+  }
+  .eyebrow .secno { color: var(--faint); margin-right: 1em; }
+
+  h2.sect {
+    font-family: var(--display);
+    font-optical-sizing: auto;
+    font-weight: 560;
+    font-size: clamp(34px, 4.6vw, 54px);
+    line-height: 1.06;
+    letter-spacing: -0.015em;
+    margin: 18px 0 0;
+  }
+  h2.sect em { font-style: italic; font-weight: 480; color: var(--amber); }
+
+  .lede {
+    color: var(--cream-dim);
+    font-size: clamp(17px, 1.6vw, 20px);
+    max-width: 62ch;
+    margin-top: 22px;
+  }
+  .lede strong { color: var(--cream); font-weight: 600; }
+
+  a { color: var(--amber); text-decoration: none; }
+  a:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+  /* ---------- nav ---------- */
+  nav {
+    border-bottom: 1px solid var(--line-soft);
+    position: relative; z-index: 10;
+  }
+  .nav-inner {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 0;
+    font-family: var(--mono); font-size: 13px;
+  }
+  .wordmark { color: var(--cream); font-weight: 600; letter-spacing: 0.02em; }
+  .wordmark .dollar { color: var(--amber); margin-right: 8px; }
+  .wordmark:hover { text-decoration: none; }
+  .nav-links { display: flex; gap: 28px; align-items: center; }
+  .nav-links a { color: var(--muted); transition: color .15s; }
+  .nav-links a:hover { color: var(--cream); text-decoration: none; }
+  .nav-gh {
+    border: 1px solid var(--line); padding: 6px 14px; border-radius: 3px;
+    color: var(--cream) !important;
+  }
+  .nav-gh:hover { border-color: var(--amber); color: var(--amber) !important; }
+
+  /* ---------- hero ---------- */
+  header.hero { position: relative; overflow: hidden; }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    gap: 60px;
+    align-items: center;
+    padding: clamp(64px, 9vw, 120px) 0 clamp(56px, 7vw, 96px);
+    position: relative; z-index: 2;
+  }
+  .hero-meta {
+    font-family: var(--mono); font-size: 12px; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--muted);
+    display: flex; gap: 14px; flex-wrap: wrap; align-items: center;
+  }
+  .hero-meta .dot { color: var(--faint); }
+  .hero-meta .mit { color: var(--sage); }
+
+  h1.title {
+    font-family: var(--display);
+    font-optical-sizing: auto;
+    font-weight: 640;
+    font-size: clamp(64px, 11vw, 136px);
+    line-height: 0.96;
+    letter-spacing: -0.03em;
+    margin: 26px 0 0;
+  }
+  h1.title .hand { font-style: italic; font-weight: 420; color: var(--amber); letter-spacing: -0.02em; }
+
+  .tagline {
+    font-family: var(--display);
+    font-weight: 400;
+    font-style: italic;
+    font-size: clamp(21px, 2.6vw, 29px);
+    color: var(--cream-dim);
+    margin-top: 20px;
+    letter-spacing: -0.01em;
+  }
+
+  .hero-sub {
+    color: var(--muted);
+    max-width: 52ch;
+    margin-top: 18px;
+    font-size: 17px;
+  }
+  .hero-sub code {
+    font-family: var(--mono); font-size: 0.85em;
+    color: var(--cream-dim);
+    background: var(--panel); border: 1px solid var(--line-soft);
+    padding: 1px 6px; border-radius: 3px;
+  }
+
+  .hero-grid > *, .patch-grid > *, .prin > *, .install-grid > *, .cov-grid > *, .paths > * { min-width: 0; }
+  .hero-actions { margin-top: 38px; display: flex; gap: 16px; flex-wrap: wrap; align-items: stretch; max-width: 100%; }
+
+  .install-line {
+    display: flex; align-items: center; gap: 14px;
+    font-family: var(--mono); font-size: 14px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 13px 18px;
+    color: var(--cream);
+    white-space: nowrap;
+    overflow-x: auto;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .install-line .prompt { color: var(--amber); user-select: none; }
+  .install-line .cmd-dim { color: var(--muted); }
+  .copy-btn {
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em;
+    color: var(--faint); background: none; border: 1px solid var(--line-soft);
+    border-radius: 3px; padding: 4px 9px; cursor: pointer;
+    text-transform: uppercase; transition: all .15s; flex-shrink: 0;
+  }
+  .copy-btn:hover { color: var(--amber); border-color: var(--amber-soft); }
+  .copy-btn.copied { color: var(--sage); border-color: var(--sage); }
+
+  .btn-gh {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-family: var(--mono); font-size: 14px;
+    border: 1px solid var(--amber-soft);
+    color: var(--amber);
+    border-radius: 4px;
+    padding: 13px 22px;
+    transition: all .15s;
+  }
+  .btn-gh:hover { background: var(--amber); color: var(--ink); text-decoration: none; }
+  .btn-gh svg { width: 16px; height: 16px; fill: currentColor; }
+
+  /* ---------- hero slide wireframe ---------- */
+  .slide-fig { position: relative; }
+  .slide-frame {
+    aspect-ratio: 16 / 9;
+    border: 1px solid var(--line);
+    background:
+      linear-gradient(rgba(232,163,61,0.025), rgba(232,163,61,0) 40%),
+      var(--ink-2);
+    border-radius: 4px;
+    position: relative;
+    box-shadow: 0 30px 80px -20px rgba(0,0,0,0.7);
+    transform: rotate(-1.2deg);
+  }
+  .slide-frame::before {
+    content: "slide 3 · 13.33 × 7.5 in";
+    position: absolute; top: -26px; right: 2px;
+    font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.14em;
+    color: var(--faint); text-transform: uppercase;
+  }
+  .shape {
+    position: absolute;
+    border: 1px dashed rgba(150,139,118,0.55);
+    border-radius: 2px;
+  }
+  .shape .tag {
+    position: absolute; top: -17px; left: -1px;
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em;
+    color: var(--muted); white-space: nowrap;
+  }
+  .shape .tag b { color: var(--amber); font-weight: 500; }
+  .shape-title { top: 9%; left: 6%; width: 64%; height: 17%; }
+  .shape-title .fill {
+    position: absolute; inset: 18% 8% auto 6%;
+    height: 30%; background: var(--cream-dim); opacity: .5; border-radius: 1px;
+  }
+  .shape-title .fill2 {
+    position: absolute; inset: 60% 40% auto 6%;
+    height: 22%; background: var(--muted); opacity: .35; border-radius: 1px;
+  }
+  .shape-body { top: 36%; left: 6%; width: 50%; height: 50%; }
+  .shape-body i {
+    position: absolute; left: 7%; height: 7%;
+    background: var(--muted); opacity: .35; border-radius: 1px; display: block;
+  }
+  .shape-pic {
+    top: 36%; left: 62%; width: 32%; height: 50%;
+    border-style: solid; border-color: rgba(232,163,61,0.85);
+    background: repeating-linear-gradient(-45deg, rgba(232,163,61,0.10) 0 6px, transparent 6px 12px);
+  }
+  .shape-pic .tag { color: var(--amber); top: auto; bottom: -19px; left: auto; right: -1px; }
+  .slide-caption {
+    margin-top: 30px;
+    font-family: var(--mono); font-size: 12px; line-height: 1.8;
+    color: var(--faint);
+  }
+  .slide-caption .op { color: var(--sage); }
+
+  /* ---------- sections ---------- */
+  section { border-top: 1px solid var(--line-soft); position: relative; }
+  .sect-pad { padding: clamp(64px, 8vw, 110px) 0; }
+
+  /* ---------- three paths ---------- */
+  .paths {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 0;
+    margin-top: 56px;
+    border: 1px solid var(--line-soft);
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  .path {
+    padding: 34px 30px 38px;
+    background: var(--ink-2);
+    border-left: 1px solid var(--line-soft);
+    position: relative;
+  }
+  .path:first-child { border-left: none; }
+  .path h3 {
+    font-family: var(--mono); font-size: 13px; font-weight: 600;
+    letter-spacing: 0.14em; text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 16px;
+    display: flex; align-items: baseline; gap: 12px;
+  }
+  .path .verdict {
+    font-family: var(--mono); font-size: 10.5px; font-weight: 500;
+    letter-spacing: 0.1em; padding: 2px 8px; border-radius: 2px;
+  }
+  .path.bad .verdict { color: var(--red); border: 1px solid rgba(224,108,95,0.4); }
+  .path.good { background: var(--panel-2); }
+  .path.good .verdict { color: var(--sage); border: 1px solid rgba(164,189,128,0.45); }
+  .path.good h3 { color: var(--cream); }
+  .path.good::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: var(--amber);
+  }
+  .path p { color: var(--muted); font-size: 16px; }
+  .path.good p { color: var(--cream-dim); }
+  .path p code { font-family: var(--mono); font-size: 0.82em; color: var(--cream-dim); }
+
+  /* ---------- code blocks ---------- */
+  .term {
+    background: #0a0907;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    overflow: hidden;
+    box-shadow: 0 24px 70px -24px rgba(0,0,0,0.8);
+  }
+  .term-bar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 11px 16px;
+    border-bottom: 1px solid var(--line-soft);
+    background: var(--panel);
+    font-family: var(--mono); font-size: 12px; color: var(--faint);
+  }
+  .term-bar .dots { display: flex; gap: 6px; }
+  .term-bar .dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); display: block; }
+  .term-bar .dots i:first-child { background: #4a3f2e; }
+  .term-bar .fname { margin-left: 6px; letter-spacing: 0.06em; }
+  .term pre {
+    padding: 22px 24px;
+    font-family: var(--mono);
+    font-size: 13.5px;
+    line-height: 1.75;
+    overflow-x: auto;
+    color: var(--cream-dim);
+  }
+
+  /* json tokens */
+  .j-key  { color: var(--steel); }
+  .j-str  { color: var(--sage); }
+  .j-op   { color: var(--amber); font-weight: 600; }
+  .j-num  { color: var(--terracotta); }
+  .j-pun  { color: var(--faint); }
+
+  /* terminal tokens */
+  .t-red    { color: var(--red); font-weight: 600; }
+  .t-dim    { color: var(--faint); }
+  .t-amber  { color: var(--amber); }
+  .t-sage   { color: var(--sage); }
+  .t-cream  { color: var(--cream); }
+  .t-prompt { color: var(--amber); }
+
+  /* ---------- patch model layout ---------- */
+  .patch-grid .term pre { font-size: 13px; }
+  .patch-grid {
+    display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 4fr);
+    gap: 56px;
+    margin-top: 56px;
+    align-items: start;
+  }
+  .op-notes { display: flex; flex-direction: column; }
+  .op-note {
+    padding: 20px 0;
+    border-top: 1px solid var(--line-soft);
+  }
+  .op-note:first-child { border-top: none; padding-top: 6px; }
+  .op-note h4 {
+    font-family: var(--mono); font-size: 13px; font-weight: 600;
+    color: var(--amber); letter-spacing: 0.04em;
+    margin-bottom: 6px;
+  }
+  .op-note p { color: var(--muted); font-size: 15.5px; line-height: 1.55; }
+  .patch-kicker {
+    margin-top: 34px;
+    font-family: var(--mono); font-size: 13px; line-height: 1.8;
+    color: var(--faint);
+  }
+  .patch-kicker b { color: var(--sage); font-weight: 500; }
+
+  /* ---------- principles ---------- */
+  .principles { margin-top: 64px; counter-reset: prin; }
+  .prin {
+    display: grid;
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: clamp(28px, 5vw, 72px);
+    padding: 52px 0;
+    border-top: 1px solid var(--line-soft);
+    align-items: start;
+  }
+  .prin:first-child { border-top: none; padding-top: 0; }
+  .prin-head { position: sticky; top: 32px; }
+  .prin-no {
+    font-family: var(--mono); font-size: 12px; letter-spacing: 0.2em;
+    color: var(--faint);
+  }
+  .prin-no::before { counter-increment: prin; content: "0" counter(prin); color: var(--amber); margin-right: 8px; font-size: 15px; }
+  .prin h3 {
+    font-family: var(--display); font-weight: 540;
+    font-size: clamp(25px, 2.7vw, 33px);
+    line-height: 1.12; letter-spacing: -0.01em;
+    margin-top: 12px;
+  }
+  .prin h3 em { font-style: italic; font-weight: 440; color: var(--amber); }
+  .prin-body p { color: var(--muted); font-size: 16.5px; max-width: 56ch; }
+  .prin-body p + p { margin-top: 14px; }
+  .prin-body p strong { color: var(--cream-dim); font-weight: 600; }
+  .prin-body p code { font-family: var(--mono); font-size: 0.82em; color: var(--cream-dim); background: var(--panel); border: 1px solid var(--line-soft); padding: 1px 5px; border-radius: 3px; }
+  .prin-body .term { margin-top: 24px; }
+  .prin-body .term pre { font-size: 12.5px; }
+
+  /* ---------- coverage ---------- */
+  .cov-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 1px; background: var(--line-soft);
+    border: 1px solid var(--line-soft); border-radius: 5px;
+    overflow: hidden; margin-top: 56px;
+  }
+  .cov {
+    background: var(--ink-2); padding: 30px 28px 34px;
+    transition: background .2s;
+  }
+  .cov:hover { background: var(--panel-2); }
+  .cov h3 {
+    font-family: var(--mono); font-size: 14px; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--cream); margin-bottom: 10px;
+    display: flex; align-items: baseline; gap: 10px;
+  }
+  .cov h3::before { content: "▸"; color: var(--amber); font-size: 11px; }
+  .cov p { color: var(--muted); font-size: 15px; line-height: 1.55; }
+  .cov p code { font-family: var(--mono); font-size: 0.84em; color: var(--cream-dim); }
+  .outscope {
+    margin-top: 28px;
+    font-family: var(--mono); font-size: 13px; line-height: 1.8;
+    color: var(--faint);
+    border-left: 2px solid var(--line);
+    padding-left: 18px;
+  }
+  .outscope b { color: var(--muted); font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; font-size: 11.5px; }
+
+  /* ---------- install ---------- */
+  .install-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 22px; margin-top: 56px;
+  }
+  .inst {
+    border: 1px solid var(--line); border-radius: 6px;
+    background: var(--ink-2);
+    padding: 28px 26px 30px;
+    display: flex; flex-direction: column; gap: 14px;
+    transition: border-color .2s, transform .2s;
+  }
+  .inst:hover { border-color: var(--amber-soft); transform: translateY(-3px); }
+  .inst .where {
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--amber);
+  }
+  .inst h3 { font-family: var(--display); font-weight: 540; font-size: 23px; letter-spacing: -0.01em; }
+  .inst p { color: var(--muted); font-size: 15px; flex-grow: 1; }
+  .inst .inst-cmd {
+    font-family: var(--mono); font-size: 12.5px; line-height: 1.7;
+    background: #0a0907; border: 1px solid var(--line-soft); border-radius: 4px;
+    padding: 12px 14px; color: var(--cream-dim);
+    overflow-x: auto; white-space: pre;
+    position: relative;
+  }
+  .inst .inst-cmd .prompt { color: var(--amber); user-select: none; }
+  .inst .inst-cmd .t-dim { color: var(--faint); }
+
+  /* ---------- footer ---------- */
+  footer {
+    border-top: 1px solid var(--line-soft);
+    padding: 56px 0 72px;
+  }
+  .foot-inner {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 32px; flex-wrap: wrap;
+    font-family: var(--mono); font-size: 13px; color: var(--faint); line-height: 2;
+  }
+  .foot-inner a { color: var(--muted); }
+  .foot-inner a:hover { color: var(--amber); }
+  .foot-sig { text-align: right; }
+  .foot-sig .every { color: var(--cream-dim); }
+
+  /* ---------- reveal (hidden state only when JS is running) ---------- */
+  .js .rv { opacity: 0; transform: translateY(22px); transition: opacity .7s ease, transform .7s ease; }
+  .js .rv.in { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) {
+    .rv { opacity: 1; transform: none; transition: none; }
+    .grain { animation: none; }
+    html { scroll-behavior: auto; }
+  }
+
+  /* ---------- responsive ---------- */
+  @media (max-width: 980px) {
+    .hero-grid { grid-template-columns: 1fr; gap: 70px; }
+    .slide-fig { max-width: 560px; }
+    .patch-grid { grid-template-columns: 1fr; gap: 36px; }
+    .prin { grid-template-columns: 1fr; gap: 18px; padding: 44px 0; }
+    .prin-head { position: static; }
+    .cov-grid { grid-template-columns: 1fr 1fr; }
+    .install-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 660px) {
+    body { font-size: 17px; }
+    .wrap { padding: 0 20px; }
+    .nav-links a:not(.nav-gh) { display: none; }
+    .paths { grid-template-columns: 1fr; }
+    .path { border-left: none; border-top: 1px solid var(--line-soft); }
+    .path:first-child { border-top: none; }
+    .cov-grid { grid-template-columns: 1fr; }
+    .term pre { font-size: 12px; padding: 18px 16px; }
+    .prin-body .term pre { font-size: 11px; }
+    .install-line { font-size: 12.5px; padding: 12px 14px; width: 100%; }
+    .foot-sig { text-align: left; }
+  }
+</style>
+</head>
+<body>
+
+<div class="grain" aria-hidden="true"></div>
+
+<nav>
+  <div class="wrap nav-inner">
+    <a class="wordmark" href="#"><span class="dollar">$</span>deckhand</a>
+    <div class="nav-links">
+      <a href="#patch-model">patch model</a>
+      <a href="#principles">principles</a>
+      <a href="#coverage">coverage</a>
+      <a href="#story">story</a>
+      <a href="#install">install</a>
+      <a class="nav-gh" href="https://github.com/EveryInc/deckhand">GitHub ↗</a>
+    </div>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="glow" aria-hidden="true"></div>
+  <div class="wrap">
+    <div class="hero-grid">
+      <div>
+        <div class="hero-meta">
+          <span class="mit">MIT licensed</span><span class="dot">·</span>
+          <span>open source</span><span class="dot">·</span>
+          <span>an Agent Skill</span>
+        </div>
+        <h1 class="title">deck<span class="hand">hand</span></h1>
+        <p class="tagline">Agent-native PowerPoint manipulation.</p>
+        <p class="hero-sub">One CLI — <code>deck.py</code> — lets AI agents inspect, edit, create, and verify <code>.pptx</code> files with the fidelity of a human operator. Works in Claude Code, claude.ai, and anywhere an agent can run a shell command.</p>
+        <div class="hero-actions">
+          <div class="install-line">
+            <span class="prompt">&gt;</span>
+            <span id="install-cmd"><span class="cmd-dim">/plugin</span> marketplace add EveryInc/deckhand</span>
+            <button class="copy-btn" data-copy="/plugin marketplace add EveryInc/deckhand">copy</button>
+          </div>
+          <a class="btn-gh" href="https://github.com/EveryInc/deckhand">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+            EveryInc/deckhand
+          </a>
+        </div>
+      </div>
+      <figure class="slide-fig" aria-hidden="true">
+        <div class="slide-frame">
+          <div class="shape shape-title">
+            <span class="tag"><b>s12</b> TEXT_BOX</span>
+            <i class="fill"></i><i class="fill2"></i>
+          </div>
+          <div class="shape shape-body">
+            <span class="tag"><b>s18</b> AUTO_SHAPE</span>
+            <i style="top:14%; width:72%;"></i>
+            <i style="top:34%; width:58%;"></i>
+            <i style="top:54%; width:66%;"></i>
+            <i style="top:74%; width:40%;"></i>
+          </div>
+          <div class="shape shape-pic">
+            <span class="tag"><b>s9</b> PICTURE ← swap-image</span>
+          </div>
+        </div>
+        <figcaption class="slide-caption">
+          the agent doesn't draw pixels or hand-write XML —<br>
+          it addresses shapes by id and states <span class="op">what should change</span>.
+        </figcaption>
+      </figure>
+    </div>
+  </div>
+</header>
+
+<section id="problem">
+  <div class="wrap sect-pad">
+    <div class="rv">
+      <p class="eyebrow"><span class="secno">§ 01</span>The problem</p>
+      <h2 class="sect">A .pptx is a zip of XML.<br>There were two bad ways in.</h2>
+      <p class="lede">Agents that edit the XML directly hand-write OOXML — fragile, token-hungry, one namespace typo from a corrupt file. Agents that regenerate decks from scratch lose everything a template encodes. <strong>deckhand takes a third path.</strong></p>
+    </div>
+    <div class="paths rv">
+      <div class="path bad">
+        <h3>Hand-write OOXML <span class="verdict">fragile</span></h3>
+        <p>Unzip, edit <code>slide3.xml</code> raw, rezip. Burns thousands of tokens on angle brackets, and a single bad namespace produces a file PowerPoint refuses to open.</p>
+      </div>
+      <div class="path bad">
+        <h3>Regenerate from scratch <span class="verdict">lossy</span></h3>
+        <p>Rebuild the deck with a generation library. Clean code — but the master, theme colors, layouts, and every designer decision the template encodes are gone.</p>
+      </div>
+      <div class="path good">
+        <h3>Declarative patch <span class="verdict">deckhand</span></h3>
+        <p>The agent writes a JSON patch describing intent — replace this text, swap that image. The tool validates everything, then executes it atomically.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="patch-model">
+  <div class="wrap sect-pad">
+    <div class="rv">
+      <p class="eyebrow"><span class="secno">§ 02</span>The patch model</p>
+      <h2 class="sect">Say <em>what</em> should change.<br>Never touch the XML.</h2>
+      <p class="lede">A patch is a list of operations against named shapes on numbered slides. One file, one apply, one atomic result.</p>
+    </div>
+    <div class="patch-grid">
+      <div class="term rv">
+        <div class="term-bar">
+          <span class="dots"><i></i><i></i><i></i></span>
+          <span class="fname">patch.json</span>
+        </div>
+        <pre><span class="j-pun">{</span><span class="j-key">"ops"</span><span class="j-pun">: [</span>
+  <span class="j-pun">{</span><span class="j-key">"op"</span><span class="j-pun">:</span> <span class="j-op">"replace-text"</span><span class="j-pun">,</span>
+   <span class="j-key">"scope"</span><span class="j-pun">:</span> <span class="j-str">"master"</span><span class="j-pun">,</span> <span class="j-key">"from"</span><span class="j-pun">:</span> <span class="j-str">"Globex"</span><span class="j-pun">,</span> <span class="j-key">"to"</span><span class="j-pun">:</span> <span class="j-str">"Acme"</span><span class="j-pun">},</span>
+  <span class="j-pun">{</span><span class="j-key">"op"</span><span class="j-pun">:</span> <span class="j-op">"set-text"</span><span class="j-pun">,</span>
+   <span class="j-key">"slide"</span><span class="j-pun">:</span> <span class="j-num">3</span><span class="j-pun">,</span> <span class="j-key">"shape"</span><span class="j-pun">:</span> <span class="j-str">"s12"</span><span class="j-pun">,</span> <span class="j-key">"text"</span><span class="j-pun">:</span> <span class="j-pun">[</span><span class="j-str">"Q3 results"</span><span class="j-pun">,</span> <span class="j-str">"Tokens down 84%"</span><span class="j-pun">]},</span>
+  <span class="j-pun">{</span><span class="j-key">"op"</span><span class="j-pun">:</span> <span class="j-op">"swap-image"</span><span class="j-pun">,</span>
+   <span class="j-key">"slide"</span><span class="j-pun">:</span> <span class="j-num">4</span><span class="j-pun">,</span> <span class="j-key">"shape"</span><span class="j-pun">:</span> <span class="j-str">"s9"</span><span class="j-pun">,</span> <span class="j-key">"image"</span><span class="j-pun">:</span> <span class="j-str">"screenshot.png"</span><span class="j-pun">},</span>
+  <span class="j-pun">{</span><span class="j-key">"op"</span><span class="j-pun">:</span> <span class="j-op">"duplicate"</span><span class="j-pun">,</span>
+   <span class="j-key">"slide"</span><span class="j-pun">:</span> <span class="j-num">5</span><span class="j-pun">,</span> <span class="j-key">"shape"</span><span class="j-pun">:</span> <span class="j-str">"s31"</span><span class="j-pun">,</span> <span class="j-key">"offset"</span><span class="j-pun">:</span> <span class="j-pun">[</span><span class="j-num">0</span><span class="j-pun">,</span> <span class="j-num">1.2</span><span class="j-pun">],</span> <span class="j-key">"text"</span><span class="j-pun">:</span> <span class="j-pun">[</span><span class="j-str">"Fourth pillar"</span><span class="j-pun">]}</span>
+<span class="j-pun">]}</span></pre>
+      </div>
+      <div class="op-notes rv">
+        <div class="op-note">
+          <h4>replace-text · scope: master</h4>
+          <p>Rebrand the whole deck — masters, layouts, every slide — in one op.</p>
+        </div>
+        <div class="op-note">
+          <h4>set-text</h4>
+          <p>Address a shape by its stable id. Each list item becomes a paragraph; formatting survives.</p>
+        </div>
+        <div class="op-note">
+          <h4>swap-image</h4>
+          <p>New picture, same frame, same crop, same position. The layout never knows.</p>
+        </div>
+        <div class="op-note">
+          <h4>duplicate</h4>
+          <p>Clone an existing styled shape, offset it in inches, rewrite its text. The template is the design system.</p>
+        </div>
+        <p class="patch-kicker"><b>deck.py deck.pptx apply patch.json --fix --render img/</b><br>— validated first, applied atomically, linted after.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="principles">
+  <div class="wrap sect-pad">
+    <div class="rv">
+      <p class="eyebrow"><span class="secno">§ 03</span>The differentiator</p>
+      <h2 class="sect">Built around how agents <em>actually fail</em></h2>
+      <p class="lede">The interesting part isn't that it's a CLI — it's that <strong>every design choice targets a known LLM failure mode</strong>.</p>
+    </div>
+
+    <div class="principles">
+
+      <div class="prin rv">
+        <div class="prin-head">
+          <p class="prin-no">/ FAILURE MODE: HALLUCINATED REFERENCES</p>
+          <h3>Errors <em>teach</em> instead of scold</h3>
+        </div>
+        <div class="prin-body">
+          <p>Agents guess shape ids. A bad reference doesn't return <code>shape not found</code> and force another round trip — it returns the slide's <strong>real shape inventory</strong>, so the agent self-corrects from the error message alone.</p>
+          <div class="term">
+            <div class="term-bar">
+              <span class="dots"><i></i><i></i><i></i></span>
+              <span class="fname">deck.py deck.pptx apply patch.json</span>
+            </div>
+            <pre><span class="t-red">PATCH REJECTED</span> <span class="t-dim">—</span> <span class="t-cream">2 validation error(s), nothing was modified:</span>
+  <span class="t-dim">-</span> op[0] set-text: shape <span class="t-amber">'s9999'</span> not found on slide 0.
+<span class="t-cream">shapes on slide 0:</span>
+  <span class="t-amber">s16</span>    <span class="t-sage">PICTURE</span>      <span class="t-dim">[-1.25,-0.91 15.0x8.44in]</span>  (image image3.png)
+  <span class="t-amber">s18</span>    <span class="t-sage">AUTO_SHAPE</span>   <span class="t-dim">[7.00,5.17 2.6x0.25in]</span>  Session Management
+  <span class="t-amber">s19</span>    <span class="t-sage">TEXT_BOX</span>     <span class="t-dim">[0.60,1.00 4.0x0.4in]</span>  USING CLAUDE CODE</pre>
+          </div>
+        </div>
+      </div>
+
+      <div class="prin rv">
+        <div class="prin-head">
+          <p class="prin-no">/ FAILURE MODE: CASCADING PARTIAL STATE</p>
+          <h3>All errors at once, <em>atomically</em></h3>
+        </div>
+        <div class="prin-body">
+          <p>A patch with nine mistakes returns <strong>nine actionable errors and writes zero bytes</strong>. Never a half-applied patch, never fix-one-rerun-find-the-next. The agent repairs everything in a single pass.</p>
+        </div>
+      </div>
+
+      <div class="prin rv">
+        <div class="prin-head">
+          <p class="prin-no">/ FAILURE MODE: NO SPATIAL SENSE</p>
+          <h3>The linter watches the agent's <em>hands</em></h3>
+        </div>
+        <div class="prin-body">
+          <p>Agents can't feel when a text box overflows or two shapes collide. After every apply, the linter reports <strong>only the geometry problems the patch introduced</strong> — exact inch values, and the exact command that fixes them. No noise about pre-existing quirks.</p>
+        </div>
+      </div>
+
+      <div class="prin rv">
+        <div class="prin-head">
+          <p class="prin-no">/ FAILURE MODE: AGREEABLE OVERCONFIDENCE</p>
+          <h3>Repair is <em>honest</em></h3>
+        </div>
+        <div class="prin-body">
+          <p><code>fix</code> re-measures the slide after repairing it. Anything still broken is reported as <strong>residue — never claimed as fixed</strong>. The tool refuses to tell the agent what it wants to hear.</p>
+        </div>
+      </div>
+
+      <div class="prin rv">
+        <div class="prin-head">
+          <p class="prin-no">/ FAILURE MODE: BLIND EDITING</p>
+          <h3>Verification is <em>visual</em></h3>
+        </div>
+        <div class="prin-body">
+          <p>Slides render to JPGs; the agent can <strong>crop and zoom any region</strong> to inspect a chart label or a kerning disaster up close. It looks at its work the way a human operator would — before anyone else has to.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<section id="coverage">
+  <div class="wrap sect-pad">
+    <div class="rv">
+      <p class="eyebrow"><span class="secno">§ 04</span>Coverage</p>
+      <h2 class="sect">The whole lifecycle of a deck</h2>
+    </div>
+    <div class="cov-grid rv">
+      <div class="cov">
+        <h3>Read</h3>
+        <p>Full deck inventory — slides, shapes, geometry, text, formatting runs, speaker notes — as structured output an agent can reason over.</p>
+      </div>
+      <div class="cov">
+        <h3>Edit</h3>
+        <p>Text, images, formatting, position, borders, fills — every mutation through the same validated patch pipeline.</p>
+      </div>
+      <div class="cov">
+        <h3>Create</h3>
+        <p>New slides from the template's own layouts, new shapes cloned from styled ones. The brand survives by construction.</p>
+      </div>
+      <div class="cov">
+        <h3>Structure</h3>
+        <p>Add, delete, reorder, and duplicate slides; merge decks; add and remove table rows and columns. Work across masters and layouts, not just the surface.</p>
+      </div>
+      <div class="cov">
+        <h3>Verify</h3>
+        <p>Render to images, crop, zoom, lint geometry, diff before/after. Trust is earned per-edit, not assumed.</p>
+      </div>
+      <div class="cov">
+        <h3>Escape hatch</h3>
+        <p>When the patch model can't express it, drop to raw OOXML deliberately — with the tooling still validating the result.</p>
+      </div>
+    </div>
+    <p class="outscope rv"><b>Out of scope, honestly:</b> native chart objects, animations, and slide transitions. deckhand does the 95% that client decks are actually made of, and says so.</p>
+  </div>
+</section>
+
+<section id="story">
+  <div class="wrap sect-pad">
+    <div class="rv">
+      <p class="eyebrow"><span class="secno">§ 05</span>Provenance</p>
+      <h2 class="sect">This shipped <em>client work</em> first</h2>
+      <p class="lede">deckhand wasn't built as a demo. At <a href="https://every.to/consulting">Every Consulting</a> we worked with a client whose deck production ran on human hours — <strong>a person spent hours on every deck, and the team spent hundreds of hours</strong> assembling, rebranding, and updating presentations by hand.</p>
+      <p class="lede" style="margin-top:16px;">We rebuilt that workflow around agents: same master template, same brand, same review standards — with agents doing the assembly, the edits, and the visual QA. deckhand is the engine that made them reliable enough to trust with it. Now it's yours.</p>
+      <div class="hero-actions" style="margin-top:34px;">
+        <a class="btn-gh" href="https://every.to/consulting">Work with Every Consulting ↗</a>
+      </div>
+      <p class="patch-kicker" style="margin-top:22px;">decks were one workflow. <b>automating your team's work is literally what we do.</b></p>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap sect-pad">
+    <div class="rv">
+      <p class="eyebrow"><span class="secno">§ 06</span>Install</p>
+      <h2 class="sect">Three ways in. <em>Pick yours.</em></h2>
+      <p class="lede">deckhand is packaged as an Agent Skill — but underneath it's just a CLI, so any agent that can run a shell command can use it.</p>
+    </div>
+    <div class="install-grid rv">
+      <div class="inst">
+        <p class="where">Claude Code</p>
+        <h3>One command</h3>
+        <p>Add the marketplace and the skill is available in every project, from any working directory.</p>
+        <div class="inst-cmd"><span class="prompt">&gt;</span> /plugin marketplace add EveryInc/deckhand<br><span class="prompt">&gt;</span> /plugin install deckhand@deckhand</div>
+      </div>
+      <div class="inst">
+        <p class="where">claude.ai</p>
+        <h3>Upload the skill</h3>
+        <p>Zip the skill folder and upload it under Settings → Capabilities. Claude picks it up whenever a deck shows up.</p>
+        <div class="inst-cmd"><span class="prompt">$</span> zip -r deckhand.zip skills/deckhand<br><span class="t-dim"># then upload in Settings → Capabilities</span></div>
+      </div>
+      <div class="inst">
+        <p class="where">Any agent</p>
+        <h3>It's just a CLI</h3>
+        <p>Clone the repo, point your agent at the docs, and let it drive deck.py directly.</p>
+        <div class="inst-cmd"><span class="prompt">$</span> git clone https://github.com/EveryInc/deckhand<br><span class="prompt">$</span> python deckhand/skills/deckhand/scripts/deck.py docs</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap foot-inner">
+    <div>
+      <span class="t-amber">$</span> deckhand — MIT license<br>
+      <a href="https://github.com/EveryInc/deckhand">github.com/EveryInc/deckhand</a>
+    </div>
+    <div class="foot-sig">
+      built by <a class="every" href="https://every.to/consulting">Every Consulting</a><br>
+      battle-tested on real client decks
+    </div>
+  </div>
+</footer>
+
+<script>
+  document.documentElement.classList.add("js");
+
+  // copy buttons
+  document.querySelectorAll(".copy-btn").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      navigator.clipboard.writeText(btn.dataset.copy).then(function () {
+        btn.textContent = "copied";
+        btn.classList.add("copied");
+        setTimeout(function () {
+          btn.textContent = "copy";
+          btn.classList.remove("copied");
+        }, 1600);
+      });
+    });
+  });
+
+  // scroll reveal
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (e) {
+      if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); }
+    });
+  }, { threshold: 0.12, rootMargin: "0px 0px -40px 0px" });
+  document.querySelectorAll(".rv").forEach(function (el) { io.observe(el); });
+</script>
+
+</body>
+</html>
