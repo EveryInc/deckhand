@@ -110,7 +110,7 @@ No binary fixtures: tests generate their decks with python-pptx on the fly.
 
 ## Who built this
 
-deckhand is open-sourced from real client work by [Every Consulting](https://every.to/consulting). One client's team used to spend hours of a person's day on every deck — hundreds of human hours across the team — assembling, rebranding, and updating presentations by hand. We automated that pipeline end to end with AI agents, and deckhand is the engine that made the agents reliable enough to trust with it.
+deckhand is open-sourced from real work by [Every Consulting](https://every.to/consulting). We built it to make our own decks — every training we run ships with a branded deck, and our agents build them with deckhand. Then we delivered it as client work: one client's team used to spend hours of a person's day on every deck — hundreds of human hours across the team — assembling, rebranding, and updating presentations by hand. We helped them automate that pipeline end to end, and deckhand is the engine that made the agents reliable enough to trust with it.
 
 If you want your team's work automated like this — decks or anything else — [that's literally what we do](https://every.to/consulting).
 
