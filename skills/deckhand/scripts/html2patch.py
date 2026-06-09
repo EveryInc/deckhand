@@ -38,6 +38,19 @@ EXTRACT_JS = r"""
   const TEXT_TAGS = new Set(['P','H1','H2','H3','H4','H5','H6']);
   const SINGLE_WEIGHT = new Set(['impact']);  // faux-bold widens text in PPT
 
+  // an element whose rendered children are all inline (or text/BR) is a text
+  // block even if it isn't a <p>/<h*> — figcaption, blockquote, dt, a bare div
+  const isInlineOnlyTextBlock = (el) => {
+    if (!el.textContent.trim()) return false;
+    return Array.from(el.childNodes).every(n => {
+      if (n.nodeType === Node.TEXT_NODE) return true;
+      if (n.nodeType !== Node.ELEMENT_NODE) return true;
+      if (n.tagName === 'BR') return true;
+      const d = cs(n).display;
+      return d === 'inline' || d === 'none';
+    });
+  };
+
   const bodyStyle = cs(document.body);
   out.body.w = parseFloat(bodyStyle.width);
   out.body.h = parseFloat(bodyStyle.height);
@@ -45,6 +58,7 @@ EXTRACT_JS = r"""
   out.body.scrollH = document.body.scrollHeight;
   out.body.bg = bodyStyle.backgroundColor;
   out.body.bgImage = bodyStyle.backgroundImage;
+  out.body.bgSize = bodyStyle.backgroundSize;
 
   const parseColor = (str) => {
     // -> {hex, alpha} or null for fully transparent / unparseable
@@ -221,6 +235,42 @@ EXTRACT_JS = r"""
     return { cssDeg, stops };
   };
 
+  // box paint extraction, shared by the body, painted text blocks, and boxes
+  const paintOf = (el2, style2, rot2, box2) => {
+    const fill = parseColor(style2.backgroundColor);
+    const grad = gradientInfo(style2.backgroundImage);
+    const border = borderInfo(style2);
+    const bgUrl = (style2.backgroundImage.match(/url\(["']?([^"')]+)["']?\)/) || [])[1];
+    if (!fill && !grad && border.kind === 'none' && !bgUrl) return null;
+    const radius = parseFloat(style2.borderTopLeftRadius) || 0;
+    const radiusIsPct = String(style2.borderTopLeftRadius).includes('%');
+    if (style2.boxShadow && style2.boxShadow !== 'none')
+      out.warnings.push('box-shadow is not supported and was dropped');
+    return {
+      bgUrl,
+      bgFit: (style2.backgroundSize || '').includes('cover') ? 'cover'
+           : (style2.backgroundSize || '').includes('contain') ? 'contain' : 'fill',
+      item: {
+        type: 'box', box: box2, rotation: rot2,
+        fill: fill ? fill.hex : null,
+        fillAlpha: fill ? fill.alpha : 1,
+        gradient: grad,
+        radiusPx: radiusIsPct
+          ? Math.min(box2.w, box2.h) * Math.min(parseFloat(style2.borderTopLeftRadius), 50) / 100
+          : radius,
+        border: border.kind === 'uniform'
+          ? { w: border.sides[0].w, color: border.sides[0].color.hex,
+              dashed: ['dashed', 'dotted'].includes(border.sides[0].style) }
+          : null,
+        partialBorders: border.kind === 'partial'
+          ? border.sides.map((s, i) => s.w > 0 && s.color
+              ? { side: i, w: s.w, color: s.color.hex,
+                  dashed: ['dashed', 'dotted'].includes(s.style) } : null).filter(Boolean)
+          : [],
+      },
+    };
+  };
+
   // ---- walk ----
   const emit = (el) => {
     const style = cs(el);
@@ -230,7 +280,8 @@ EXTRACT_JS = r"""
     if (tag === 'IMG') {
       const r = el.getBoundingClientRect();
       out.items.push({ type: 'image', src: el.currentSrc || el.src,
-                       box: { x: r.left, y: r.top, w: r.width, h: r.height } });
+                       box: { x: r.left, y: r.top, w: r.width, h: r.height },
+                       fit: style.objectFit || 'fill' });
       return;
     }
 
@@ -253,18 +304,29 @@ EXTRACT_JS = r"""
         });
         if (row.length) { rows.push(row); cellStyles.push(rowSt); }
       });
-      if (rows.length)
+      if (rows.length) {
+        const firstTr = el.querySelector('tr');
+        const colWidths = firstTr
+          ? Array.from(firstTr.querySelectorAll('th,td')).map(c => c.getBoundingClientRect().width)
+          : [];
         out.items.push({ type: 'table', box: { x: r.left, y: r.top, w: r.width, h: r.height },
-                         rows, cellStyles,
+                         rows, cellStyles, colWidths,
                          fontSizePx: parseFloat(cs(el).fontSize) });
+      }
       return;  // never descend into tables
     }
 
-    if (TEXT_TAGS.has(tag)) {
+    if (TEXT_TAGS.has(tag) || isInlineOnlyTextBlock(el)) {
       const rot = rotationOf(style);
+      const box = boxOf(el, rot);
+      const paint = paintOf(el, style, rot, box);
+      if (paint) {
+        out.items.push(paint.item);  // badge/pill: the box paints under its text
+        if (paint.bgUrl) out.items.push({ type: 'image', src: paint.bgUrl, box, fit: paint.bgFit });
+      }
       const paras = collectRuns(el, style.textTransform);
       if (paras.length)
-        out.items.push({ type: 'text', box: boxOf(el, rot), rotation: rot,
+        out.items.push({ type: 'text', box, rotation: rot,
                          paragraphs: paras.map(runs => ({ runs })),
                          meta: blockMeta(el, style) });
       return;
@@ -278,10 +340,12 @@ EXTRACT_JS = r"""
         for (let a = li.parentElement; a && a !== el; a = a.parentElement)
           if (a.tagName === 'UL' || a.tagName === 'OL') level++;
         const liStyle = cs(li);
+        const listEl = li.parentElement;
+        const ordered = listEl && listEl.tagName === 'OL';
         collectRuns(li, liStyle.textTransform).forEach(runs => {
           // strip hand-typed bullet glyphs; the bullet comes from PPT
           runs[0].text = runs[0].text.replace(/^[•▪▸◦‣–-]\s*/, '');
-          paragraphs.push({ runs, bullet: true, level,
+          paragraphs.push({ runs, bullet: ordered ? 'number' : true, level,
                             lineHeightPx: blockMeta(li, liStyle).lineHeightPx });
         });
       });
@@ -291,50 +355,40 @@ EXTRACT_JS = r"""
       return;  // li content fully consumed
     }
 
-    // BOX: anything painting a background or border
-    const fill = parseColor(style.backgroundColor);
-    const grad = gradientInfo(style.backgroundImage);
-    const border = borderInfo(style);
-    const bgUrl = (style.backgroundImage.match(/url\(["']?([^"')]+)["']?\)/) || [])[1];
-    if (fill || grad || border.kind !== 'none' || bgUrl) {
+    // BOX: anything painting a background or border; children still walked
+    {
       const rot = rotationOf(style);
-      const box = boxOf(el, rot);
-      if (bgUrl) {
-        out.items.push({ type: 'image', src: bgUrl, box });
-        out.warnings.push('background-image url() emitted as a stretched picture (no cover/contain math)');
+      const paint = paintOf(el, style, rot, boxOf(el, rot));
+      if (paint) {
+        out.items.push(paint.item);
+        if (paint.bgUrl)
+          out.items.push({ type: 'image', src: paint.bgUrl, box: paint.item.box, fit: paint.bgFit });
+        // loose text mixed with block children is invisible to us — warn
+        for (const n of el.childNodes)
+          if (n.nodeType === Node.TEXT_NODE && n.textContent.trim())
+            out.warnings.push(
+              'text "' + n.textContent.trim().slice(0, 40) +
+              '" sits directly in a styled container with block children; wrap it in <p>/<h*>');
       }
-      const radius = parseFloat(style.borderTopLeftRadius) || 0;
-      const radiusIsPct = String(style.borderTopLeftRadius).includes('%');
-      if (style.boxShadow && style.boxShadow !== 'none')
-        out.warnings.push('box-shadow is not supported and was dropped');
-      out.items.push({
-        type: 'box', box, rotation: rot,
-        fill: fill ? fill.hex : null,
-        fillAlpha: fill ? fill.alpha : 1,
-        gradient: grad,
-        radiusPx: radiusIsPct
-          ? Math.min(box.w, box.h) * Math.min(parseFloat(style.borderTopLeftRadius), 50) / 100
-          : radius,
-        border: border.kind === 'uniform'
-          ? { w: border.sides[0].w, color: border.sides[0].color.hex,
-              dashed: ['dashed', 'dotted'].includes(border.sides[0].style) }
-          : null,
-        partialBorders: border.kind === 'partial'
-          ? border.sides.map((s, i) => s.w > 0 && s.color
-              ? { side: i, w: s.w, color: s.color.hex,
-                  dashed: ['dashed', 'dotted'].includes(s.style) } : null).filter(Boolean)
-          : [],
-      });
-      // loose text directly inside a painted box is invisible to us — warn
-      for (const n of el.childNodes)
-        if (n.nodeType === Node.TEXT_NODE && n.textContent.trim())
-          out.warnings.push(
-            'text "' + n.textContent.trim().slice(0, 40) +
-            '" sits directly in a styled container; wrap it in <p>/<h*> to be emitted');
     }
     el.childNodes.forEach(n => { if (n.nodeType === Node.ELEMENT_NODE) emit(n); });
   };
 
+  // the body's own paint is the slide background (back layer, first item)
+  {
+    const r = { x: 0, y: 0, w: out.body.w, h: out.body.h };
+    const paint = paintOf(document.body, bodyStyle, null, r);
+    if (paint) {
+      if (paint.item.fill || paint.item.gradient) {
+        paint.item.border = null;
+        paint.item.partialBorders = [];
+        paint.item.radiusPx = 0;
+        out.items.push(paint.item);
+      }
+      if (paint.bgUrl)
+        out.items.push({ type: 'image', src: paint.bgUrl, box: r, fit: paint.bgFit });
+    }
+  }
   document.body.childNodes.forEach(n => { if (n.nodeType === Node.ELEMENT_NODE) emit(n); });
   return out;
 }
@@ -433,7 +487,7 @@ def text_block_ops(item, slide_ref, name, warnings):
         para = {"alignment": meta["align"].upper(), "line_spacing": px2pt(lh_px),
                 "space_before": 0, "space_after": 0}
         if p.get("bullet"):
-            para["bullet"] = True
+            para["bullet"] = p["bullet"]  # True or "number"
             if p.get("level"):
                 para["level"] = p["level"]
         runs = [run_to_spec(r) for r in p["runs"]]
@@ -483,19 +537,17 @@ def box_ops(item, slide_ref, name, warnings):
             op["gradient"] = {
                 "colors": [s["hex"] for s in stops],
                 "positions": positions,
-                # CSS 0deg points up and grows clockwise; pptx 0deg points right
-                "angle": (g["cssDeg"] - 90) % 360,
+                # CSS: 0deg points up, grows clockwise. python-pptx
+                # gradient_angle: 0deg points right, grows counterclockwise.
+                "angle": (90 - g["cssDeg"]) % 360,
             }
         elif item["fill"]:
             op["fill"] = item["fill"]
             if item.get("fillAlpha", 1) < 1:
                 warnings.append("fill alpha %.2f dropped (solid color emitted)" % item["fillAlpha"])
         else:
-            # border-only frame: no fill key would leave the theme default,
-            # which paints. There is no "no fill" style key, so warn.
-            warnings.append(
-                "border-only box '%s' gets the theme default fill — give it an explicit "
-                "background-color, or follow up with deck.py xml if it must be hollow" % name)
+            op["fill"] = "none"  # border-only frame stays hollow
+        op["shadow"] = False  # browsers don't draw PPT's theme shadow
         if item["border"]:
             op["line_color"] = item["border"]["color"]
             op["line_width"] = px2pt(item["border"]["w"])
@@ -537,12 +589,11 @@ def table_ops(item, slide_ref, name, warnings):
         rows = [r + [""] * (ncols - len(r)) for r in rows]
     # neutralize the theme's banded table style; transparent HTML cells become
     # no-fill cells so the slide background shows through, like the browser
-    fills = {st.get("fill") for row in item["cellStyles"] for st in row}
-    fill = fills.pop() if len(fills) == 1 and fills != {None} else None
+    fill_set = {st.get("fill") for row in item["cellStyles"] for st in row}
     all_styles = [st for row in item["cellStyles"] for st in row]
     base_color = max((st["color"] for st in all_styles),
                      key=[st["color"] for st in all_styles].count)
-    ops = [{
+    op = {
         "op": "add-table", "slide": slide_ref, "name": name,
         "at": [px2in(box["x"]), px2in(box["y"])],
         "size": [px2in(box["w"]), px2in(box["h"])],
@@ -550,8 +601,16 @@ def table_ops(item, slide_ref, name, warnings):
         "font_size": px2pt(item["fontSizePx"]),
         "color": base_color,
         "first_row": False, "banding": False,
-        "fill": fill or "none",
-    }]
+    }
+    if len(fill_set) == 1:
+        only = fill_set.pop()
+        op["fill"] = only or "none"
+    else:
+        op["fills"] = [[st.get("fill") or "none" for st in row]
+                       for row in item["cellStyles"]]
+    if item.get("colWidths") and len(item["colWidths"]) == ncols:
+        op["col_widths"] = [px2in(w) for w in item["colWidths"]]
+    ops = [op]
     # cells whose style differs from the table default get a set-text follow-up
     base_pt = px2pt(item["fontSizePx"])
     for ri, row_styles in enumerate(item["cellStyles"]):
@@ -571,9 +630,36 @@ def table_ops(item, slide_ref, name, warnings):
                 overrides["text"] = rows[ri][ci]
                 ops.append({"op": "set-text", "slide": slide_ref, "shape": name,
                             "cell": [ri, ci], "text": [overrides]})
-    if len({st.get("fill") for row in item["cellStyles"] for st in row}) > 1:
-        warnings.append("table has mixed cell backgrounds; only a uniform fill is emitted")
     return ops
+
+
+def picture_op(path, box, fit, slide_ref):
+    """add-picture op honoring object-fit / background-size semantics."""
+    op = {"op": "add-picture", "slide": slide_ref, "image": str(path),
+          "at": [px2in(box["x"]), px2in(box["y"])],
+          "size": [px2in(box["w"]), px2in(box["h"])]}
+    if fit in ("cover", "contain"):
+        from PIL import Image as PILImage
+
+        nw, nh = PILImage.open(path).size
+        nat_ar, box_ar = nw / nh, box["w"] / box["h"]
+        if fit == "cover":  # crop the overflowing dimension
+            if nat_ar > box_ar:
+                c = round((1 - box_ar / nat_ar) / 2, 4)
+                op["crop"] = [c, 0, c, 0]
+            elif nat_ar < box_ar:
+                c = round((1 - nat_ar / box_ar) / 2, 4)
+                op["crop"] = [0, c, 0, c]
+        else:  # contain: letterbox — shrink the target rect, centered
+            if nat_ar > box_ar:
+                h = box["w"] / nat_ar
+                op["at"] = [px2in(box["x"]), px2in(box["y"] + (box["h"] - h) / 2)]
+                op["size"] = [px2in(box["w"]), px2in(h)]
+            elif nat_ar < box_ar:
+                w = box["h"] * nat_ar
+                op["at"] = [px2in(box["x"] + (box["w"] - w) / 2), px2in(box["y"])]
+                op["size"] = [px2in(w), px2in(box["h"])]
+    return op
 
 
 def compile_page(extract, slide_ref, html_path, tmpdir, prefix, warnings):
@@ -585,35 +671,13 @@ def compile_page(extract, slide_ref, html_path, tmpdir, prefix, warnings):
         seq[0] += 1
         return "%s-%s-%d" % (prefix, kind, seq[0])
 
-    body = extract["body"]
-    bg = None
-    m = re.search(r'url\(["\']?([^"\')]+)["\']?\)', body.get("bgImage") or "")
-    if m:
-        p = resolve_image(m.group(1), html_path.parent, tmpdir, warnings)
-        if p:
-            ops.append({"op": "add-picture", "slide": slide_ref, "image": str(p),
-                        "at": [0, 0], "size": [px2in(body["w"]), px2in(body["h"])]})
-    else:
-        col = None
-        bgm = re.match(r"rgba?\((\d+)[,\s]+(\d+)[,\s]+(\d+)(?:[,\s/]+([\d.]+))?\)",
-                       body.get("bg") or "")
-        if bgm and (bgm.group(4) is None or float(bgm.group(4)) > 0):
-            col = "%02X%02X%02X" % tuple(int(bgm.group(i)) for i in (1, 2, 3))
-        if col and col != "FFFFFF":
-            ops.append({"op": "add-shape", "slide": slide_ref, "kind": "rect",
-                        "name": next_name("bg"), "at": [0, 0],
-                        "size": [px2in(body["w"]), px2in(body["h"])],
-                        "fill": col, "line": "none"})
-
+    # the body's own paint arrives as the first item(s) from the extractor
     for item in extract["items"]:
         if item["type"] == "image":
             p = resolve_image(item["src"], html_path.parent, tmpdir, warnings)
             if not p:
                 continue
-            b = item["box"]
-            ops.append({"op": "add-picture", "slide": slide_ref, "image": str(p),
-                        "at": [px2in(b["x"]), px2in(b["y"])],
-                        "size": [px2in(b["w"]), px2in(b["h"])]})
+            ops.append(picture_op(p, item["box"], item.get("fit", "fill"), slide_ref))
         elif item["type"] == "text":
             ops += text_block_ops(item, slide_ref, next_name("text"), warnings)
         elif item["type"] == "box":

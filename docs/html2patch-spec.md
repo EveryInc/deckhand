@@ -111,14 +111,18 @@ Per text block:
 
 | CSS (computed) | patch key |
 |---|---|
-| background-color (α>0) | `fill` (hex; alpha dropped, α<1 emits a warning) |
-| background-image: linear-gradient(...) | `gradient {colors, positions, angle}`; CSS deg → pptx angle = (cssdeg − 90) mod 360; unsupported gradient types → warning + flat fill of first stop |
+| background-color (α>0) | `fill` (hex; alpha dropped, α<1 emits a warning); border-only boxes get `fill:"none"` (hollow) |
+| background-image: linear-gradient(...) | `gradient {colors, positions, angle}`; CSS deg → pptx angle = (90 − cssdeg) mod 360 (CSS grows clockwise from north; python-pptx counterclockwise from east) |
 | border (uniform) | `line_color`, `line_width` (px×0.75 pt); dashed/dotted → `line_dash` |
 | border (non-uniform, e.g. accent bar) | one `add-shape kind=line` per painted side, inset by half the width |
-| border-radius > 0 | shape kind `roundRect` + `adjustments:[radius / min(w,h)]` (true radius, clamped to 0.5) |
+| border-radius > 0 | shape kind `rounded_rect` + `adjustments:[radius / min(w,h)]` (true radius, clamped to 0.5) |
 | transform: rotate(θ) / writing-mode vertical | `rotation` with pre-rotation box math (see learnings) |
-| background-image: url(...) on body | full-slide `add-picture` back layer |
-| box-shadow, filters | out of scope v1 (warning) |
+| background-image: url(...) (body or any box) | `add-picture` under the element's children; `background-size: cover/contain` honored |
+| object-fit: cover / contain on `<img>` | `crop:[l,t,r,b]` source fractions (cover) or letterboxed target rect (contain), computed from the file with PIL |
+| `<ol>` | paragraphs with `bullet:"number"` (a:buAutoNum); `<ul>` → `bullet:true` |
+| table cell backgrounds | uniform → `fill`; mixed → `fills` row-major grid; column widths from the first row's measured rects → `col_widths` |
+| theme artifacts | every box/picture gets `shadow:false` (browsers don't draw PPT's theme shadow); tables get `first_row:false, banding:false` |
+| box-shadow, filters, letter-spacing | out of scope v1 (warning for shadows) |
 
 ## deck.py additions required
 

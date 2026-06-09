@@ -949,9 +949,12 @@ def _apply_style_keys(rec, op):
                 styled += 1
     if "fill" in op:
         try:
-            h = op["fill"].lstrip("#")
-            rec.shape.fill.solid()
-            rec.shape.fill.fore_color.rgb = RGBColor(int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
+            if op["fill"] == "none":
+                rec.shape.fill.background()
+            else:
+                h = op["fill"].lstrip("#")
+                rec.shape.fill.solid()
+                rec.shape.fill.fore_color.rgb = RGBColor(int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
             styled += 1
         except Exception as e:
             raise PatchError("cannot set fill on %s (%s): %s" % (rec.sid, rec.type, e))
@@ -1013,6 +1016,18 @@ def _apply_style_keys(rec, op):
             styled += 1
         except Exception as e:
             raise PatchError("cannot set adjustments on %s (%s): %s" % (rec.sid, rec.type, e))
+    if "shadow" in op:
+        try:
+            rec.shape.shadow.inherit = bool(op["shadow"])
+            if not op["shadow"]:
+                # an empty effectLst SHOULD override the style's effectRef, but
+                # some renderers (LibreOffice) still apply it — zero it too
+                ref = rec.shape._element.find(qn("p:style") + "/" + qn("a:effectRef"))
+                if ref is not None:
+                    ref.set("idx", "0")
+            styled += 1
+        except Exception as e:
+            raise PatchError("cannot set shadow on %s (%s): %s" % (rec.sid, rec.type, e))
     return styled
 
 
@@ -1190,6 +1205,13 @@ def op_add_picture(ctx, op):
     elif "height" in op:
         kw = {"height": Inches(op["height"])}
     sh = slide.shapes.add_picture(str(op["image"]), Inches(l), Inches(t), **kw)
+    if "crop" in op:
+        c = op["crop"]
+        if not (isinstance(c, (list, tuple)) and len(c) == 4):
+            raise PatchError('"crop" must be [left, top, right, bottom] fractions (0-1)')
+        sh.crop_left, sh.crop_top, sh.crop_right, sh.crop_bottom = [float(v) for v in c]
+    if "shadow" in op:
+        sh.shadow.inherit = bool(op["shadow"])
     ctx.reindex_slide(slide_idx)
     ctx.log.append(
         "add-picture slide %d %s -> s%d (%.2fx%.2fin)"
@@ -1212,15 +1234,25 @@ def op_add_table(ctx, op):
         tbl.first_row = bool(op["first_row"])
     if "banding" in op:
         tbl.horz_banding = bool(op["banding"])
+    if "col_widths" in op:
+        widths = op["col_widths"]
+        if len(widths) != len(rows[0]):
+            raise PatchError(
+                "col_widths has %d entries for %d columns" % (len(widths), len(rows[0]))
+            )
+        for col, cw in zip(tbl.columns, widths):
+            col.width = Inches(cw)
     fill = op.get("fill")
+    fills = op.get("fills")  # row-major grid; entries: "RRGGBB" | "none" | null
     for ri, row in enumerate(rows):
         for ci, val in enumerate(row):
             cell = tbl.cell(ri, ci)
             cell.text = str(val)
-            if fill == "none":
+            cf = fills[ri][ci] if fills else fill
+            if cf == "none":
                 cell.fill.background()
-            elif fill:
-                h = fill.lstrip("#")
+            elif cf:
+                h = cf.lstrip("#")
                 cell.fill.solid()
                 cell.fill.fore_color.rgb = RGBColor(int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
             if "font_size" in op or "color" in op:
@@ -2208,7 +2240,8 @@ set-style      {"op":"set-style","slide":3,"shape":"s12",...}
   - Text: applies to ALL runs in the shape (and all table cells): font_size,
     font_name, bold, italic, underline, color ("RRGGBB"). For per-paragraph
     changes use set-text override objects; per-run, set-text "runs".
-  - Fill: "fill":"RRGGBB" = solid background.
+  - Fill: "fill":"RRGGBB" = solid background; "fill":"none" = no fill
+    (hollow shape — only the outline paints).
     "gradient":{"colors":["0F5258","4999A0"],"angle":90,"positions":[0,1]}
     = two-stop linear gradient (replaces any existing fill; angle in degrees
     counter-clockwise from left-to-right; positions optional, 0-1).
@@ -2222,6 +2255,8 @@ set-style      {"op":"set-style","slide":3,"shape":"s12",...}
     defaults are 0.1/0.05/0.1/0.05, NOT zero — set [0,0,0,0] for flush text).
   - "adjustments":[0.12] = shape adjustment handles (e.g. roundRect corner
     radius as a fraction of the smaller dimension, max 0.5).
+  - "shadow":false = remove the theme's inherited drop shadow (new autoshapes
+    often carry one); true restores inheritance.
 delete         {"op":"delete","slide":3,"shape":"s12"}   (deleting a GROUP deletes its children)
 duplicate      {"op":"duplicate","slide":3,"shape":"s12","offset":[0,1.2],"text":["New label"]}
   - THE way to scale a styled element ("three boxes → four"). The copy keeps
@@ -2251,8 +2286,16 @@ add-shape      {"op":"add-shape","slide":3,"kind":"textbox","at":[1.0,2.0],"size
 add-picture    {"op":"add-picture","slide":3,"image":"/abs/img.png","at":[1.0,2.0],"width":4.0}
   - Give "width" OR "height" to keep aspect (preferred), "size":[w,h] to force
     both, neither = native size.
+  - "crop":[l,t,r,b] = fractions of the source trimmed from each edge (this is
+    how you fill a box without distortion: size to the box + crop the excess).
 add-table      {"op":"add-table","slide":3,"at":[0.5,1.5],"size":[9.0,3.0],
                 "rows":[["Header A","Header B"],["1","2"]],"font_size":14}
+  - Optional: "name" (target it later in the same patch), "color":"RRGGBB"
+    (all text), "fill":"RRGGBB"|"none" (all cells) or "fills":[[...]] row-major
+    per-cell grid, "col_widths":[4.5,2.25,2.25] (inches), "first_row":false +
+    "banding":false to neutralize the theme's banded table style.
+  - set-text with "cell":[row,col] styles individual cells afterwards; its
+    paragraph objects take "bullet":true (•) or "bullet":"number" (1. 2. 3.).
 add-slide      {"op":"add-slide","layout":"Blank","at":5}
   - layout = name (exact, then substring) or 0-based index across all masters;
     omit it for the blankest layout. Omit "at" to append. Later ops in the

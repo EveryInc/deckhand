@@ -48,7 +48,7 @@ def apply_paragraph_properties(paragraph, para_data: Dict[str, Any]):
     # Get or create paragraph properties
     pPr = clear_paragraph_bullets(paragraph)
 
-    # Handle bullet formatting
+    # Handle bullet formatting (bullet: True = "•", bullet: "number" = 1. 2. 3.)
     if para_data.get("bullet", False):
         level = para_data.get("level", 0)
         paragraph.level = level
@@ -62,10 +62,14 @@ def apply_paragraph_properties(paragraph, para_data: Dict[str, Any]):
         pPr.attrib["marL"] = str(level_indent_emu)
         pPr.attrib["indent"] = str(hanging_indent_emu)
 
-        # Add bullet character
-        buChar = OxmlElement("a:buChar")
-        buChar.set("char", "•")
-        pPr.append(buChar)
+        if para_data["bullet"] == "number":
+            buNum = OxmlElement("a:buAutoNum")
+            buNum.set("type", "arabicPeriod")
+            pPr.append(buNum)
+        else:
+            buChar = OxmlElement("a:buChar")
+            buChar.set("char", "•")
+            pPr.append(buChar)
 
         # Default to left alignment for bullets if not specified
         if "alignment" not in para_data:

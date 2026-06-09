@@ -111,16 +111,41 @@ def test_runs_transform_and_insets(tmp_path):
 def test_nested_bullets_no_duplication(tmp_path):
     html = (
         "<html><head><style>" + BODY % ""
-        + "ul { position:absolute; left:96px; top:96px; width:600px; font:16px Arial; }"
+        + "ul, ol { position:absolute; left:96px; width:600px; font:16px Arial; }"
+        "ul { top:96px; } ol { top:300px; }"
         "</style></head><body><ul><li>parent</li>"
-        "<li>second<ul><li>child</li></ul></li></ul></body></html>"
+        "<li>second<ul><li>child</li></ul></li></ul>"
+        "<ol><li>step one</li><li>step two</li></ol></body></html>"
     )
     patch, _, _ = compile_html(tmp_path, html)
-    op = [o for o in patch["ops"] if o.get("kind") == "textbox"][0]
-    paras = op["text"]
+    boxes = [o for o in patch["ops"] if o.get("kind") == "textbox"]
+    paras = boxes[0]["text"]
     texts = [(p.get("text") or p["runs"][0]["text"], p.get("level", 0)) for p in paras]
     assert texts == [("parent", 0), ("second", 0), ("child", 1)]
-    assert all(p["bullet"] for p in paras)
+    assert all(p["bullet"] is True for p in paras)
+    # ordered list compiles to auto-numbered paragraphs
+    assert [p["bullet"] for p in boxes[1]["text"]] == ["number", "number"]
+
+
+def test_object_fit_cover_and_figcaption(tmp_path):
+    from PIL import Image
+
+    Image.new("RGB", (300, 500), "#16777E").save(str(tmp_path / "tall.png"))
+    html = (
+        "<html><head><style>" + BODY % ""
+        + "img { position:absolute; left:96px; top:96px; width:384px; height:192px;"
+        "  object-fit: cover; }"
+        "figcaption { position:absolute; left:96px; top:300px; font:14px Arial; color:#333333; }"
+        "</style></head><body><img src='tall.png'>"
+        "<figcaption>caption text here</figcaption></body></html>"
+    )
+    patch, _, _ = compile_html(tmp_path, html)
+    pic = [o for o in patch["ops"] if o["op"] == "add-picture"][0]
+    # 300x500 source into a 2:1 box: crop 35% top and bottom
+    assert pic["crop"] == [0, 0.35, 0, 0.35]
+    caps = [o for o in patch["ops"] if o.get("kind") == "textbox"]
+    assert len(caps) == 1
+    assert caps[0]["text"][0]["text"] == "caption text here"
 
 
 def test_gradient_radius_and_partial_border(tmp_path):
@@ -137,11 +162,16 @@ def test_gradient_radius_and_partial_border(tmp_path):
     grad = [o for o in patch["ops"] if "gradient" in o][0]
     assert grad["kind"] == "rounded_rect"
     assert grad["gradient"]["colors"] == ["102030", "405060"]
-    assert grad["gradient"]["angle"] == 45  # css 135deg
+    # css 135deg (to bottom-right); pptx is counterclockwise from east
+    assert grad["gradient"]["angle"] == 315
     assert grad["adjustments"] == [0.1]  # 24px / 240px
+    assert grad["shadow"] is False  # theme shadows are suppressed
     lines = [o for o in patch["ops"] if o.get("kind") == "line"]
     assert len(lines) == 1
     assert lines[0]["line_color"] == "AA0000" and lines[0]["line_width"] == 3.0
+    # the border-only bar's face stays hollow
+    bar = [o for o in patch["ops"] if o.get("kind") == "rect" and o.get("fill") == "none"]
+    assert len(bar) == 0 or all("gradient" not in o for o in bar)
     # and the whole thing applies cleanly
     r = deck(deck_path, "apply", patch_path, "-o", tmp_path / "out.pptx")
     assert r.returncode == 0, r.stdout + r.stderr
@@ -153,6 +183,7 @@ def test_table_neutralized_and_styled(tmp_path):
         + "table { position:absolute; left:96px; top:96px; width:600px;"
         "  border-collapse:collapse; font:14px Arial; color:#333333; }"
         "th, td { height: 40px; } th { font-weight:bold; }"
+        "th { background:#0B3D3A; color:#FFFFFF; }"
         "</style></head><body><table>"
         "<tr><th>A</th><th>B</th></tr><tr><td>1</td><td>2</td></tr>"
         "</table></body></html>"
@@ -160,10 +191,12 @@ def test_table_neutralized_and_styled(tmp_path):
     patch, deck_path, patch_path = compile_html(tmp_path, html)
     tbl = [o for o in patch["ops"] if o["op"] == "add-table"][0]
     assert tbl["rows"] == [["A", "B"], ["1", "2"]]
-    assert tbl["first_row"] is False and tbl["banding"] is False and tbl["fill"] == "none"
-    cell_ops = [o for o in patch["ops"] if o["op"] == "set-text"]
-    assert {tuple(o["cell"]) for o in cell_ops} == {(0, 0), (0, 1)}
-    assert all(o["text"][0]["bold"] for o in cell_ops)
+    assert tbl["first_row"] is False and tbl["banding"] is False
+    # mixed cell backgrounds become a per-cell fills grid
+    assert tbl["fills"] == [["0B3D3A", "0B3D3A"], ["none", "none"]]
+    assert len(tbl["col_widths"]) == 2 and abs(sum(tbl["col_widths"]) - 6.25) < 0.05
+    cell_ops = {tuple(o["cell"]): o for o in patch["ops"] if o["op"] == "set-text"}
+    assert cell_ops[(0, 0)]["text"][0]["bold"] and cell_ops[(0, 1)]["text"][0]["bold"]
     r = deck(deck_path, "apply", patch_path, "-o", tmp_path / "out.pptx")
     assert r.returncode == 0, r.stdout + r.stderr
 

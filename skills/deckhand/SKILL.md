@@ -76,10 +76,12 @@ python scripts/deck.py deck.pptx apply patch.json -o out.pptx --render img/
 
 - The `<body>` is the slide at 96px/inch: 16:9 → `width:1280px; height:720px`.
   Content overflowing the body is a compile error.
-- ALL text lives in `<p>`, `<h1>`–`<h6>`, `<ul>`/`<ol>`, or `<table>` — text
-  loose in a `<div>` is dropped (with a warning). Divs with background /
-  border / border-radius / linear-gradient become styled rects; `<img>` becomes
-  a picture (local files only); `<table>` becomes a real table.
+- Text lives in `<p>`, `<h1>`–`<h6>`, `<ul>`/`<ol>` (numbered), `<table>`, or
+  any element with inline-only content (figcaption, blockquote…). Divs with
+  background / border / border-radius / linear-gradient become styled rects;
+  `<img>` becomes a picture (local files only; `object-fit: cover` becomes a
+  real crop); `<table>` becomes a real table with per-cell fills and measured
+  column widths.
 - Inline `<b>`/`<i>`/`<u>`/`<span style>` become formatted runs. CSS padding
   maps to text insets; `text-transform`, `transform:rotate`, and vertical
   `writing-mode` are honored. Use installed fonts (Arial, Georgia, …).

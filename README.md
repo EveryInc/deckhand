@@ -88,7 +88,7 @@ Emitting a patch instead of a file is the whole trick:
 - **Reflow drift is caught, not hoped away.** Browser and PowerPoint wrap text slightly differently; the post-apply lint re-measures the real deck and reports any overflow with the exact fix. The safety net covers the create path with zero new code.
 - **Inspectable intermediate.** The patch is readable JSON — tweak one op by hand, or skip HTML entirely for simple slides. HTML is a frontend that compiles to the same IR every other edit uses.
 
-Text in `<p>`/`<h*>`/lists/tables becomes formatted runs (inline `<b>`/`<i>`/`<span>` included); styled divs become rects with gradients, borders, and true corner radii; CSS padding maps to text insets; `transform: rotate` and `text-transform` are honored. Needs `pip install playwright && playwright install chromium` — optional, the core tool doesn't.
+Text becomes formatted runs (inline `<b>`/`<i>`/`<span>` included); styled divs become rects with gradients, borders, and true corner radii; tables keep per-cell fills and measured column widths; `<ol>` numbers, `<ul>` bullets; `object-fit: cover` becomes a real picture crop; CSS padding maps to text insets; `transform: rotate` and `text-transform` are honored. Needs `pip install playwright && playwright install chromium` — optional, the core tool doesn't.
 
 ## Install
 
