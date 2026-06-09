@@ -2,6 +2,8 @@
 
 **Agent-native PowerPoint manipulation.** One CLI — `deck.py` — lets AI agents inspect, edit, create, and verify `.pptx` files with the fidelity of a human operator: atomic JSON patches in, linted decks out.
 
+**→ [everyinc.github.io/deckhand](https://everyinc.github.io/deckhand/)**
+
 Packaged as an [Agent Skill](https://www.anthropic.com/news/skills), so it drops into Claude Code, claude.ai, and any other agent platform that supports the skills format — and because the tool itself is just a CLI, *any* agent that can run a shell command can use it.
 
 ```bash
