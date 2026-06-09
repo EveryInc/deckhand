@@ -553,14 +553,15 @@ class ShapeData:
         # Default PowerPoint margins in inches
         margins = {"top": 0.05, "bottom": 0.05, "left": 0.1, "right": 0.1}
 
-        # Override with actual margins if set
-        if hasattr(text_frame, "margin_top") and text_frame.margin_top:
+        # Override with actual margins if set (0 is a real value — explicit
+        # zero insets must not fall back to the defaults)
+        if getattr(text_frame, "margin_top", None) is not None:
             margins["top"] = self.emu_to_inches(text_frame.margin_top)
-        if hasattr(text_frame, "margin_bottom") and text_frame.margin_bottom:
+        if getattr(text_frame, "margin_bottom", None) is not None:
             margins["bottom"] = self.emu_to_inches(text_frame.margin_bottom)
-        if hasattr(text_frame, "margin_left") and text_frame.margin_left:
+        if getattr(text_frame, "margin_left", None) is not None:
             margins["left"] = self.emu_to_inches(text_frame.margin_left)
-        if hasattr(text_frame, "margin_right") and text_frame.margin_right:
+        if getattr(text_frame, "margin_right", None) is not None:
             margins["right"] = self.emu_to_inches(text_frame.margin_right)
 
         # Calculate usable area

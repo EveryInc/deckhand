@@ -64,12 +64,31 @@ shapes on slide 0:
 |---|---|
 | **Read** | `inspect` — shape ids, geometry (inches), text + formatting + per-run breakdowns, image rIds + media names, table contents, fills/gradients/borders, rotation, detected issues; `--master` for masters/layouts |
 | **Edit** | `set-text` (formatting-inheriting), `replace-text` (deck/master/slide scope), `swap-image` (per-slide or deck-wide via media bytes), `set-style` (fonts, solid/gradient fills, borders, rotation), `move`, `resize`, `delete`, `set-notes` |
-| **Create** | `add-slide` (by layout), `add-shape` (textbox, autoshapes, any MSO_SHAPE name, lines), `add-picture` (aspect-preserving), `add-table`, `duplicate`, `copy-shape` (across slides, relationships re-homed) |
+| **Create** | `add-slide` (by layout), `add-shape` (textbox, autoshapes, any MSO_SHAPE name, lines), `add-picture` (aspect-preserving), `add-table` (style-neutralized), `duplicate`, `copy-shape` (across slides, relationships re-homed) |
+| **Create from HTML** | `html2patch.py` — write a slide as HTML/CSS, get a deck.py patch back: measured boxes, formatted runs, gradients, rounded corners, bullets, tables, images, rotation |
 | **Structure** | `reorder` (z-order), `add-row`/`delete-row`/`add-col`/`delete-col` (formatting-inheriting, width-rescaling, merged-cell guard), `slides` (reorder/duplicate/delete), `merge` (pull slides from another deck) |
 | **Verify** | `render` (JPGs, crop + zoom), `diff` (structural changelog), post-apply lint, `fix` (deterministic repair) |
 | **Escape hatch** | `xml get`/`xml set` — pretty-printed part XML, parse-checked and lint-checked on write-back |
 
 **Out of scope by design** (escape hatch or PowerPoint): creating native charts, animations, transitions, embedded video/OLE, merged-cell table surgery.
+
+## Design slides in HTML, keep one writer
+
+Free-form slide design is the one place agents beat templates — and HTML/CSS is the layout language agents are best at. `html2patch.py` uses a headless browser purely as a *measuring engine*: it renders your HTML, reads back every element's box and computed style, and compiles a **deck.py patch** — not a .pptx.
+
+```bash
+python html2patch.py slide.html --deck deck.pptx --layout Blank -o patch.json
+python deck.py deck.pptx apply patch.json -o out.pptx --render img/
+```
+
+Emitting a patch instead of a file is the whole trick:
+
+- **One writer.** Created slides get the same shape ids, lint coverage, `fix` loop, and `diff`/`render` verification as edited ones. No second engine with its own quirks.
+- **Creation *into* templates.** The patch can `add-slide` with a layout from your branded master and place the HTML-measured shapes onto it — free-form layout inside an existing deck, which a generate-a-new-file architecture can't do.
+- **Reflow drift is caught, not hoped away.** Browser and PowerPoint wrap text slightly differently; the post-apply lint re-measures the real deck and reports any overflow with the exact fix. The safety net covers the create path with zero new code.
+- **Inspectable intermediate.** The patch is readable JSON — tweak one op by hand, or skip HTML entirely for simple slides. HTML is a frontend that compiles to the same IR every other edit uses.
+
+Text in `<p>`/`<h*>`/lists/tables becomes formatted runs (inline `<b>`/`<i>`/`<span>` included); styled divs become rects with gradients, borders, and true corner radii; CSS padding maps to text insets; `transform: rotate` and `text-transform` are honored. Needs `pip install playwright && playwright install chromium` — optional, the core tool doesn't.
 
 ## Install
 
@@ -93,6 +112,7 @@ python deckhand/skills/deckhand/scripts/deck.py docs
 ## Requirements
 
 - Python 3.9+, `python-pptx`, `Pillow` (lxml, used by the xml escape hatch, ships with python-pptx)
+- For `html2patch` (create slides from HTML): `pip install playwright && playwright install chromium`
 - For `render` and thumbnail grids: LibreOffice (`soffice`) and Poppler (`pdftoppm`)
   - macOS: `brew install --cask libreoffice && brew install poppler`
   - Debian/Ubuntu: `apt-get install libreoffice-impress poppler-utils`

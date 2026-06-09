@@ -995,6 +995,24 @@ def _apply_style_keys(rec, op):
             styled += 1
         except Exception as e:
             raise PatchError("cannot set rotation on %s (%s): %s" % (rec.sid, rec.type, e))
+    if "insets" in op:
+        ins = op["insets"]
+        if not (isinstance(ins, (list, tuple)) and len(ins) == 4):
+            raise PatchError('"insets" must be [left, top, right, bottom] in inches')
+        if not getattr(rec.shape, "has_text_frame", False):
+            raise PatchError("cannot set insets on %s (%s): no text frame" % (rec.sid, rec.type))
+        tf = rec.shape.text_frame
+        tf.margin_left, tf.margin_top = Inches(ins[0]), Inches(ins[1])
+        tf.margin_right, tf.margin_bottom = Inches(ins[2]), Inches(ins[3])
+        styled += 1
+    if "adjustments" in op:
+        try:
+            adjs = rec.shape.adjustments
+            for i, val in enumerate(op["adjustments"]):
+                adjs[i] = float(val)
+            styled += 1
+        except Exception as e:
+            raise PatchError("cannot set adjustments on %s (%s): %s" % (rec.sid, rec.type, e))
     return styled
 
 
@@ -1187,14 +1205,34 @@ def op_add_table(ctx, op):
     gf = ctx.prs.slides[slide_idx].shapes.add_table(
         len(rows), len(rows[0]), Inches(l), Inches(t), Inches(w), Inches(h)
     )
+    if "name" in op:
+        gf.name = op["name"]
     tbl = gf.table
+    if "first_row" in op:
+        tbl.first_row = bool(op["first_row"])
+    if "banding" in op:
+        tbl.horz_banding = bool(op["banding"])
+    fill = op.get("fill")
     for ri, row in enumerate(rows):
         for ci, val in enumerate(row):
-            tbl.cell(ri, ci).text = str(val)
-            if "font_size" in op:
-                for para in tbl.cell(ri, ci).text_frame.paragraphs:
+            cell = tbl.cell(ri, ci)
+            cell.text = str(val)
+            if fill == "none":
+                cell.fill.background()
+            elif fill:
+                h = fill.lstrip("#")
+                cell.fill.solid()
+                cell.fill.fore_color.rgb = RGBColor(int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
+            if "font_size" in op or "color" in op:
+                for para in cell.text_frame.paragraphs:
                     for run in para.runs:
-                        run.font.size = Pt(op["font_size"])
+                        if "font_size" in op:
+                            run.font.size = Pt(op["font_size"])
+                        if "color" in op:
+                            ch = op["color"].lstrip("#")
+                            run.font.color.rgb = RGBColor(
+                                int(ch[0:2], 16), int(ch[2:4], 16), int(ch[4:6], 16)
+                            )
     ctx.reindex_slide(slide_idx)
     ctx.log.append(
         "add-table slide %d -> s%d (%dx%d)" % (slide_idx, gf.shape_id, len(rows), len(rows[0]))
@@ -1437,7 +1475,7 @@ def validate_ops(ctx, ops):
             continue
         if any(key in op and op[key] >= n_orig for key in ("slide", "from_slide")):
             continue  # targets a slide an earlier add-slide creates — checkable only at run time
-        if kind == "add-shape" and "name" in op:
+        if kind in ("add-shape", "add-table") and "name" in op:
             created.add((op["slide"], op["name"]))
         if kind in ("set-text", "move", "resize", "set-style", "delete", "duplicate", "reorder",
                     "add-row", "delete-row", "add-col", "delete-col"):
@@ -2180,6 +2218,10 @@ set-style      {"op":"set-style","slide":3,"shape":"s12",...}
     Works on any shape incl. pictures (frame border).
   - "rotation":45 = degrees clockwise (inspect reports it; pos/size stay the
     unrotated bounding box).
+  - "insets":[l,t,r,b] = text-frame internal margins in INCHES (PowerPoint
+    defaults are 0.1/0.05/0.1/0.05, NOT zero — set [0,0,0,0] for flush text).
+  - "adjustments":[0.12] = shape adjustment handles (e.g. roundRect corner
+    radius as a fraction of the smaller dimension, max 0.5).
 delete         {"op":"delete","slide":3,"shape":"s12"}   (deleting a GROUP deletes its children)
 duplicate      {"op":"duplicate","slide":3,"shape":"s12","offset":[0,1.2],"text":["New label"]}
   - THE way to scale a styled element ("three boxes → four"). The copy keeps
@@ -2191,15 +2233,19 @@ reorder        {"op":"reorder","slide":3,"shape":"s12","z":"front"}   front|back
   - Z-order. inspect lists shapes back-to-front (first = bottom layer).
 
 CREATE OPS (prefer duplicate/copy-shape when a styled donor exists — new
-shapes start from PowerPoint defaults, not the deck's design language)
+shapes start from PowerPoint defaults, not the deck's design language.
+Designing a whole slide from scratch? html2patch.py compiles an HTML/CSS
+file into a patch of these ops: write the slide as HTML, get measured
+add-shape/add-picture/add-table ops back. Needs playwright.)
 add-shape      {"op":"add-shape","slide":3,"kind":"textbox","at":[1.0,2.0],"size":[4.0,1.5],
                 "text":["Label"],"fill":"0B3D3A","font_size":18,"rotation":0,"name":"my-box"}
   - kind: textbox | rect | rounded_rect | ellipse | any MSO_SHAPE name
     (CHEVRON, PENTAGON, …) | line (straight connector, takes "from":[x,y] +
     "to":[x,y] instead of at/size).
   - Accepts every set-style key in the same op (fill, gradient, line_color,
-    line_width, line_dash, font_*, color, rotation) plus "text" (set-text
-    semantics — strings or {"text":…, formatting} objects or "runs").
+    line_width, line_dash, font_*, color, rotation, insets, adjustments) plus
+    "text" (set-text semantics — strings or {"text":…, formatting} objects or
+    "runs").
   - Give it a "name" and LATER ops in the same patch can target that name
     (validation knows it's coming). New shape ids appear in the apply log.
 add-picture    {"op":"add-picture","slide":3,"image":"/abs/img.png","at":[1.0,2.0],"width":4.0}

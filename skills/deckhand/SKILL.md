@@ -63,6 +63,34 @@ Key semantics (details in `docs`):
 - **add-shape `"name"`** lets later ops in the same patch target the shape it creates.
 - Keep new text comparable in length to the old, or let `fix` repair the overflow.
 
+## Creating slides from HTML (html2patch)
+
+When a slide should be DESIGNED from scratch — free-form layout, no styled
+donor to duplicate — write it as HTML/CSS and compile it into a patch. The
+browser is used as a measuring engine; the output is ordinary deck.py ops:
+
+```bash
+python scripts/html2patch.py slide.html --deck deck.pptx --layout Blank -o patch.json
+python scripts/deck.py deck.pptx apply patch.json -o out.pptx --render img/
+```
+
+- The `<body>` is the slide at 96px/inch: 16:9 → `width:1280px; height:720px`.
+  Content overflowing the body is a compile error.
+- ALL text lives in `<p>`, `<h1>`–`<h6>`, `<ul>`/`<ol>`, or `<table>` — text
+  loose in a `<div>` is dropped (with a warning). Divs with background /
+  border / border-radius / linear-gradient become styled rects; `<img>` becomes
+  a picture (local files only); `<table>` becomes a real table.
+- Inline `<b>`/`<i>`/`<u>`/`<span style>` become formatted runs. CSS padding
+  maps to text insets; `text-transform`, `transform:rotate`, and vertical
+  `writing-mode` are honored. Use installed fonts (Arial, Georgia, …).
+- By default each HTML file appends a new slide (`add-slide`, `--layout` picks
+  the template layout); `--slide N` targets an existing slide instead. Multiple
+  files compile into ONE atomic patch.
+- Apply compiled patches WITHOUT `--fix` first — geometry is browser-measured,
+  so trust the render and look at it; run `fix` only if the render shows a
+  real problem.
+- Extra dependency: `pip install playwright && playwright install chromium`.
+
 ## Deck structure (subcommands, not patch ops)
 
 ```bash

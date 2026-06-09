@@ -16,6 +16,8 @@ jobs:
       - name: Install system deps (render test)
         run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libreoffice-impress poppler-utils
       - name: Install Python deps
-        run: pip install python-pptx Pillow pytest
+        run: pip install python-pptx Pillow pytest playwright
+      - name: Install Chromium (html2patch tests)
+        run: playwright install --with-deps chromium
       - name: Run tests
         run: pytest tests/ -v
