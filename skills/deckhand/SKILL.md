@@ -67,7 +67,12 @@ Key semantics (details in `docs`):
 
 When a slide should be DESIGNED from scratch — free-form layout, no styled
 donor to duplicate — write it as HTML/CSS and compile it into a patch. The
-browser is used as a measuring engine; the output is ordinary deck.py ops:
+browser is used as a measuring engine; the output is ordinary deck.py ops.
+
+**Before writing any slide HTML, read [designing-slides.md](designing-slides.md)**
+— how to design for this medium: subject-derived palettes, refusing the
+default AI-deck looks, the token plan, projection type sizes, and what
+survives compilation. The pipeline below is mechanical; that file is taste.
 
 ```bash
 python scripts/html2patch.py slide.html --deck deck.pptx --layout Blank -o patch.json

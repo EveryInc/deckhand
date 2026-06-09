@@ -90,6 +90,8 @@ Emitting a patch instead of a file is the whole trick:
 
 Text becomes formatted runs (inline `<b>`/`<i>`/`<span>` included); styled divs become rects with gradients, borders, and true corner radii; tables keep per-cell fills and measured column widths; `<ol>` numbers, `<ul>` bullets; `object-fit: cover` becomes a real picture crop; CSS padding maps to text insets; `transform: rotate` and `text-transform` are honored. Needs `pip install playwright && playwright install chromium` — optional, the core tool doesn't.
 
+And because a create path is only as good as what it creates, the skill ships with [designing-slides.md](skills/deckhand/designing-slides.md) — an opinionated, subject-first design guide for agents: how to refuse the default AI-deck looks, plan a token system before writing HTML, size type for a projector instead of a browser, and design with the compiler's grain. The pipeline is mechanical; that file is taste.
+
 ## Install
 
 **Claude Code** (as a plugin):
