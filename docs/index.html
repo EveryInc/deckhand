@@ -427,6 +427,43 @@
   .prin-body .term { margin-top: 24px; }
   .prin-body .term pre { font-size: 12.5px; }
 
+  /* ---------- comparison ---------- */
+  .cmp {
+    margin-top: 56px; border: 1px solid var(--line-soft); border-radius: 5px;
+    overflow: hidden; background: var(--line-soft);
+    display: grid; gap: 1px;
+  }
+  .cmp-row {
+    display: grid; grid-template-columns: 0.62fr 1fr 1fr; gap: 1px;
+    background: var(--line-soft);
+  }
+  .cmp-row > div { background: var(--ink-2); padding: 18px 20px; color: var(--muted); font-size: 14.5px; line-height: 1.55; }
+  .cmp-row > div code { font-family: var(--mono); font-size: 0.85em; color: var(--cream-dim); }
+  .cmp-head > div {
+    font-family: var(--mono); font-size: 11.5px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint);
+    padding: 14px 20px; background: var(--panel);
+  }
+  .cmp-head > .cmp-dh { color: var(--amber); }
+  .cmp-m {
+    font-family: var(--mono); font-size: 12.5px; font-weight: 600;
+    letter-spacing: 0.06em; text-transform: uppercase; color: var(--cream-dim) !important;
+  }
+  .cmp-row > .cmp-dh { background: #1a1510; color: var(--cream-dim); }
+  .cmp-row > .cmp-dh em { color: var(--amber); font-style: italic; }
+  .cmp-outcomes {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 1px; background: var(--line-soft);
+    border: 1px solid var(--line-soft); border-radius: 5px;
+    overflow: hidden; margin-top: 28px;
+  }
+  @media (max-width: 880px) {
+    .cmp-row { grid-template-columns: 1fr; }
+    .cmp-head { display: none; }
+    .cmp-row > .cmp-dh::before { content: "deckhand — "; color: var(--amber); font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+    .cmp-outcomes { grid-template-columns: 1fr; }
+  }
+
   /* ---------- coverage ---------- */
   .cov-grid {
     display: grid; grid-template-columns: repeat(3, 1fr);
@@ -547,6 +584,7 @@
       <a href="#principles">principles</a>
       <a href="#html">create from html</a>
       <a href="#coverage">coverage</a>
+      <a href="#versus">vs the pptx skill</a>
       <a href="#story">story</a>
       <a href="#install">install</a>
       <a class="nav-gh" href="https://github.com/EveryInc/deckhand">GitHub ↗</a>
@@ -834,10 +872,78 @@
   </div>
 </section>
 
+<section id="versus">
+  <div class="wrap sect-pad">
+    <div class="rv">
+      <p class="eyebrow"><span class="secno">§ 06</span>The comparison</p>
+      <h2 class="sect">Same job. <em>Different machinery.</em></h2>
+      <p class="lede">Anthropic ships a pptx skill, and parts of it are genuinely good — the design guidance reads like a designer wrote it. The difference is architectural: their guardrails are <em>advice to the model</em>. deckhand's are <strong>machinery in the tool</strong> — and advice can be ignored on exactly the slide that matters.</p>
+    </div>
+
+    <div class="cmp rv">
+      <div class="cmp-row cmp-head">
+        <div>the moment</div>
+        <div>Anthropic's pptx skill</div>
+        <div class="cmp-dh">deckhand</div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-m">Read the deck</div>
+        <div>markitdown text dump; thumbnails for picking layouts. Geometry and formatting live in the raw XML.</div>
+        <div class="cmp-dh">Full inventory — ids, geometry in inches, formatting runs, image names, detected issues. <code>--brief</code>: one line per shape.</div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-m">Make an edit</div>
+        <div>Unpack the zip, hand-edit <code>slide3.xml</code> raw — the skill's own docs list the OOXML pitfalls to dodge while you type angle brackets.</div>
+        <div class="cmp-dh">Declare the op. <code>set-text</code> inherits the old text's formatting; <code>swap-image</code> keeps frame and crop. The XML is the tool's problem.</div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-m">Get it wrong</div>
+        <div>Validation runs at pack time — after all the editing. Errors arrive late, one repack per discovery, and the tree on disk is already half-edited.</div>
+        <div class="cmp-dh">Patch rejected <em>before a byte is written</em> — every error at once, with the slide's real shape inventory in the message. The agent repairs in one pass.</div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-m">Text overflows its box</div>
+        <div>Nothing notices. The deck ships with the overflow.</div>
+        <div class="cmp-dh">The linter reports it in inches with the exact fix command — and after repair, anything still broken is reported as residue, never claimed fixed.</div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-m">Create from scratch</div>
+        <div>Write PptxGenJS code. The output is a new file on a blank theme — your template's master, layouts, and brand aren't in the room.</div>
+        <div class="cmp-dh">Write the slide as HTML; <code>html2patch</code> compiles it into ordinary ops — including straight into your branded template's layouts.</div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-m">Verify the result</div>
+        <div>Thumbnail grids for template analysis; for real QA, assemble your own soffice + pdftoppm pipeline.</div>
+        <div class="cmp-dh">Built in: render any slide, crop and zoom any region, <code>diff</code> the structural changelog, lint the geometry. Trust is earned per edit.</div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-m">Who owns it</div>
+        <div>Proprietary license — no derivative works, no redistribution.</div>
+        <div class="cmp-dh">MIT. Fork it, extend it, ship it inside your own product, run it on any model, any platform.</div>
+      </div>
+    </div>
+
+    <div class="cmp-outcomes rv">
+      <div class="cov">
+        <h3>If you're the agent</h3>
+        <p>You never hold raw XML in context, never burn tokens re-reading a deck to find a shape, and every mistake comes back as a correction you can act on — in one round trip.</p>
+      </div>
+      <div class="cov">
+        <h3>If you're the human</h3>
+        <p>The file that comes back always opens, is never half-edited, and still looks like <em>your</em> deck — because the edits ran inside your template instead of around it.</p>
+      </div>
+      <div class="cov">
+        <h3>If you're the platform</h3>
+        <p>It's a CLI under an MIT license. Wire it into any agent product — Claude, or anything else that can run a shell command — and keep the verification loop.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
 <section id="story">
   <div class="wrap sect-pad">
     <div class="rv">
-      <p class="eyebrow"><span class="secno">§ 06</span>Provenance</p>
+      <p class="eyebrow"><span class="secno">§ 07</span>Provenance</p>
       <h2 class="sect">We use this <em>every week</em></h2>
       <p class="lede">deckhand wasn't built as a demo. We built it to make <strong>our own decks</strong> — every training <a href="https://every.to/consulting">Every Consulting</a> runs ships with a branded deck, and our agents build them with deckhand: same master template, same brand, same review standards, with agents doing the assembly, the edits, and the visual QA.</p>
       <p class="lede" style="margin-top:16px;">And the hard parts were learned on client work. With one client whose deck production ran on human hours — <strong>a person spent hours on every deck, and the team spent hundreds of hours</strong> — we ran an earlier version of this pipeline. It surfaced every way agents fail at PPTX, and those failures became this tool's design. The failure-mode list above isn't theory; <strong>it's field notes</strong>. Now it's yours.</p>
@@ -852,7 +958,7 @@
 <section id="install">
   <div class="wrap sect-pad">
     <div class="rv">
-      <p class="eyebrow"><span class="secno">§ 07</span>Install</p>
+      <p class="eyebrow"><span class="secno">§ 08</span>Install</p>
       <h2 class="sect">Three ways in. <em>Pick yours.</em></h2>
       <p class="lede">deckhand is packaged as an Agent Skill — but underneath it's just a CLI, so any agent that can run a shell command can use it.</p>
     </div>
