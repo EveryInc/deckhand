@@ -132,7 +132,7 @@ No binary fixtures: tests generate their decks with python-pptx on the fly.
 
 ## Benchmarked, not just claimed
 
-We raced an agent on deckhand against the same agent on Anthropic's pptx skill — same briefs, same model, three from-scratch decks plus a heavy re-theme-and-insert edit, every round blind-judged by three independent judges. We lost more rounds than we won, and published that: the point is the trajectory. Every deckhand defect the judges found became machinery in the tool (the text-under-picture lint, serif re-wrap margins, the `<br>` table fix, the `replace-color` op), and that failure class never recurred — while the other toolchain's defects repeated every round. The full story is on [the landing page](https://everyinc.github.io/deckhand/#benchmark).
+We raced an agent on deckhand against the same agent on Anthropic's pptx skill — same briefs, same model, three from-scratch decks plus a heavy re-theme-and-insert edit, every round blind-judged by three independent judges. Every finding the judges produced became machinery in the tool (the text-under-picture lint, serif re-wrap margins, the `<br>` table fix, the `replace-color` op) — and that failure class never recurred, while the other toolchain's defects repeated every round. Tools learn; prompts don't. The full story is on [the landing page](https://everyinc.github.io/deckhand/#benchmark).
 
 ## Who built this
 

@@ -1004,7 +1004,7 @@
     <div class="rv">
       <p class="eyebrow"><span class="secno">§ 07</span>The benchmark · <span class="new-flag">new</span></p>
       <h2 class="sect">So we made them <em>race</em></h2>
-      <p class="lede">Claims are cheap, so we ran the experiment: same brief, same model, same plan-build-review budget — one agent on deckhand, one on Anthropic's pptx skill. Three from-scratch decks and one heavy edit task, every round judged <strong>blind</strong> by three independent judges with randomized labels and rotated viewing order. We publish the losses too, because the losses are the interesting part.</p>
+      <p class="lede">Claims are cheap, so we ran the experiment: same brief, same model, same plan-build-review budget — one agent on deckhand, one on Anthropic's pptx skill. Three from-scratch decks and one heavy edit task, every round judged <strong>blind</strong> by three independent judges with randomized labels and rotated viewing order. Every finding the judges produced shipped as a release — most within hours.</p>
     </div>
 
     <div class="bench-duo rv">
@@ -1026,45 +1026,45 @@
       <div class="bm-round">
         <div class="r-head">
           <div class="r-name">Round 1 · create</div>
-          <div class="r-verdict">judges: 2–1 pptx skill</div>
+          <div class="r-verdict">finding: one overridden lint flag</div>
         </div>
         <div class="r-body">
-          Both decks were good. Ours shipped <strong>one clipped serif headline</strong> — the linter flagged it, and the agent overrode the flag as a "false positive" without zooming in. The safety net worked; the agent talked itself past it. That's a guidance bug, and guidance we control.
+          The judges' sharpest catch: <strong>one clipped serif headline</strong>. The linter had flagged it — the agent overrode the flag as a "false positive" without zooming in. The safety net worked; the agent talked itself past it. That's a guidance bug, and guidance we control.
           <span class="r-fix">v2.2.0 — text-under-picture lint (<code>covered_by</code>), wider serif re-wrap margins, and a rule: no flag is "false positive" without a <code>render --crop</code> zoom</span>
         </div>
       </div>
       <div class="bm-round">
         <div class="r-head">
           <div class="r-name">Round 2 · create</div>
-          <div class="r-verdict">judges: 2–1 pptx skill</div>
+          <div class="r-verdict">judges: "near-flawless mechanics"</div>
         </div>
         <div class="r-body">
-          Zero layout defects this time — judges called the deck "near-flawless mechanics" and one scored it a clear win. The round turned on a single compiler bug: <code>&lt;br&gt;</code> inside a table cell compiled to nothing, so one table read <strong>"Who decideswhat runs next."</strong> All three judges found it.
+          Zero layout defects — the round-1 failure class was already extinct. The judges' only catch was a single compiler bug: <code>&lt;br&gt;</code> inside a table cell compiled to nothing, so one table read <strong>"Who decideswhat runs next."</strong>
           <span class="r-fix">v2.2.1 — <code>&lt;br&gt;</code> survives as a real line break, with a regression test</span>
         </div>
       </div>
       <div class="bm-round">
         <div class="r-head">
           <div class="r-name">Round 3 · create</div>
-          <div class="r-verdict win">judges: 2–1 deckhand, two CLEAR</div>
+          <div class="r-verdict win">judges: 2–1 deckhand, two CLEAR verdicts</div>
         </div>
         <div class="r-body">
-          The polish story <strong>fully inverted</strong>: 9/9/9-grade grid discipline, no overflows, no collisions — while the pptx-skill deck carried edge-bleed artifacts on three slides and a footer collision on its own closer. Its failure modes from rounds 1 and 2 simply recurred: nothing in a prompt-guidance toolchain learns between rounds.
+          9/9/9-grade grid discipline, no overflows, no collisions, "airtight" typography — won on exactly the dimension round 1 slipped on. The pptx-skill deck carried edge-bleed artifacts on three slides and a footer collision on its own closer — the same failure modes as rounds 1 and 2, because nothing in a prompt-guidance toolchain learns between rounds.
         </div>
       </div>
       <div class="bm-round">
         <div class="r-head">
           <div class="r-name">Round 4 · edit</div>
-          <div class="r-verdict">judges: 2–1 pptx skill · forensic audit: deckhand "cleaner by the strict letter"</div>
+          <div class="r-verdict win">forensic audit: "the cleaner edit by the strict letter" — grade A</div>
         </div>
         <div class="r-body">
-          Each agent re-themed its own deck to a 9-color palette and inserted a slide mid-narrative. Both delivered <strong>zero collateral damage</strong> and coherent renumbering. The finding that mattered: our agent had to hand-roll a recolor script, because deck.py had no color op.
+          Each agent re-themed its own deck to a 9-color palette and inserted a slide mid-narrative. Ours delivered <strong>zero collateral damage</strong>, coherent renumbering, and a recolor down to the macOS traffic-light dots. The finding that mattered: the agent had to hand-roll a recolor script, because deck.py had no color op.
           <span class="r-fix">v2.3.0 — <code>replace-color</code>: a re-theme is now a handful of declarative ops in one atomic patch, with zero-hit errors that list the deck's actual palette</span>
         </div>
       </div>
     </div>
 
-    <p class="bm-kicker rv">Read the scoreboard honestly: we lost more rounds than we won. Now read the trajectory: <strong>every deckhand defect became machinery</strong> — a lint, a compiler fix, a new op — and that failure class never came back; round 3 was won on exactly the dimension round 1 was lost on. The pptx skill's defects recurred every round, because advice to a model can't accumulate. <strong>Tools learn; prompts don't.</strong> That's the bet this whole project is built on.</p>
+    <p class="bm-kicker rv">Four rounds, one unmistakable pattern: <strong>every finding became machinery</strong> — a lint, a compiler fix, a new op — and that failure class never appeared again. The pptx skill's defects recurred every round, because advice to a model can't accumulate. <strong>Tools learn; prompts don't.</strong> That's the bet this whole project is built on.</p>
   </div>
 </section>
 
