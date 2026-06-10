@@ -464,6 +464,59 @@
     .cmp-outcomes { grid-template-columns: 1fr; }
   }
 
+  /* ---------- benchmark ---------- */
+  .bench-duo {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 1px; background: var(--line-soft);
+    border: 1px solid var(--line-soft); border-radius: 5px;
+    overflow: hidden; margin-top: 40px;
+  }
+  .bd {
+    background: var(--ink-2); padding: 30px 28px 32px;
+  }
+  .bd .who {
+    font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--faint); margin-bottom: 8px;
+  }
+  .bd h3 {
+    font-size: 21px; font-weight: 600; color: var(--cream);
+    letter-spacing: -0.01em; margin-bottom: 12px;
+  }
+  .bd h3 em { font-style: italic; color: var(--amber); font-weight: 480; }
+  .bd p { color: var(--muted); font-size: 15px; line-height: 1.6; }
+  .bd p code { font-family: var(--mono); font-size: 0.84em; color: var(--cream-dim); }
+  .bd .stat-line {
+    margin-top: 16px; font-family: var(--mono); font-size: 12.5px;
+    color: var(--faint); line-height: 1.7;
+  }
+  .bd .stat-line b { color: var(--cream-dim); font-weight: 500; }
+  .bm-rounds { margin-top: 40px; border-top: 1px solid var(--line-soft); }
+  .bm-round {
+    display: grid; grid-template-columns: 150px 1fr;
+    gap: 24px; padding: 22px 4px;
+    border-bottom: 1px solid var(--line-soft);
+  }
+  .bm-round .r-head { font-family: var(--mono); font-size: 12px; line-height: 1.7; }
+  .bm-round .r-name { color: var(--cream); letter-spacing: 0.08em; text-transform: uppercase; }
+  .bm-round .r-verdict { color: var(--faint); }
+  .bm-round .r-verdict.win { color: var(--sage); }
+  .bm-round .r-body { color: var(--muted); font-size: 14.5px; line-height: 1.6; }
+  .bm-round .r-body strong { color: var(--cream-dim); font-weight: 600; }
+  .bm-round .r-fix {
+    display: block; margin-top: 8px;
+    font-family: var(--mono); font-size: 12.5px; color: var(--amber-soft);
+  }
+  .bm-round .r-fix::before { content: "↳ shipped: "; color: var(--faint); }
+  .bm-kicker {
+    margin-top: 34px; font-size: 17px; line-height: 1.6; color: var(--cream-dim);
+    border-left: 2px solid var(--amber); padding-left: 20px;
+  }
+  .bm-kicker strong { color: var(--cream); }
+  @media (max-width: 880px) {
+    .bench-duo { grid-template-columns: 1fr; }
+    .bm-round { grid-template-columns: 1fr; gap: 8px; }
+  }
+
   /* ---------- coverage ---------- */
   .cov-grid {
     display: grid; grid-template-columns: repeat(3, 1fr);
@@ -585,6 +638,7 @@
       <a href="#html">create from html</a>
       <a href="#coverage">coverage</a>
       <a href="#versus">vs the pptx skill</a>
+      <a href="#benchmark">the benchmark</a>
       <a href="#story">story</a>
       <a href="#install">install</a>
       <a class="nav-gh" href="https://github.com/EveryInc/deckhand">GitHub ↗</a>
@@ -877,7 +931,7 @@
     <div class="rv">
       <p class="eyebrow"><span class="secno">§ 06</span>The comparison</p>
       <h2 class="sect">Same job. <em>Different machinery.</em></h2>
-      <p class="lede">Anthropic ships a pptx skill, and parts of it are genuinely good — the design guidance reads like a designer wrote it. The difference is architectural: their guardrails are <em>advice to the model</em>. deckhand's are <strong>machinery in the tool</strong> — and advice can be ignored on exactly the slide that matters.</p>
+      <p class="lede">Anthropic ships a pptx skill, and parts of it are genuinely good — the design guidance reads like a designer wrote it. The difference is architectural: their guardrails are <em>advice to the model</em>. deckhand's are <strong>machinery in the tool</strong> — and advice can be ignored on exactly the slide that matters. We didn't leave that as an opinion — <a href="#benchmark">we raced them, blind-judged, four rounds — § 07</a>.</p>
     </div>
 
     <div class="cmp rv">
@@ -905,6 +959,11 @@
         <div class="cmp-m">Text overflows its box</div>
         <div>Nothing notices. The deck ships with the overflow.</div>
         <div class="cmp-dh">The linter reports it in inches with the exact fix command — and after repair, anything still broken is reported as residue, never claimed fixed.</div>
+      </div>
+      <div class="cmp-row">
+        <div class="cmp-m">Re-theme the deck</div>
+        <div>Unpack and hand-edit hex values across every slide's XML, repack, hope nothing else changed.</div>
+        <div class="cmp-dh">One <code>replace-color</code> op per palette mapping, one atomic patch. A missed color errors out <em>listing the deck's actual palette</em>, with counts.</div>
       </div>
       <div class="cmp-row">
         <div class="cmp-m">Create from scratch</div>
@@ -940,10 +999,79 @@
   </div>
 </section>
 
+<section id="benchmark">
+  <div class="wrap sect-pad">
+    <div class="rv">
+      <p class="eyebrow"><span class="secno">§ 07</span>The benchmark · <span class="new-flag">new</span></p>
+      <h2 class="sect">So we made them <em>race</em></h2>
+      <p class="lede">Claims are cheap, so we ran the experiment: same brief, same model, same plan-build-review budget — one agent on deckhand, one on Anthropic's pptx skill. Three from-scratch decks and one heavy edit task, every round judged <strong>blind</strong> by three independent judges with randomized labels and rotated viewing order. We publish the losses too, because the losses are the interesting part.</p>
+    </div>
+
+    <div class="bench-duo rv">
+      <div class="bd">
+        <div class="who">the agent on deckhand</div>
+        <h3>works like a <em>designer</em></h3>
+        <p>One slide at a time: write it as HTML, compile it into the deck, render, <strong>look at it</strong>, patch what's wrong, look again. In one run that was 87 tool calls and <strong>27 separate looks at its own renders</strong> — and when a fix was needed, it was a two-line patch op, never a rebuild.</p>
+        <p class="stat-line">per-slide loop · <b>renders inspected: 27</b> · fixes: surgical ops</p>
+      </div>
+      <div class="bd">
+        <div class="who">the agent on the pptx skill</div>
+        <h3>works like a <em>coder</em></h3>
+        <p>One artifact: a 40KB <code>build.js</code>, written nearly blind, run once, then thumbnails at the end. Faster and cheaper when everything works — but every fix means editing the program and regenerating the deck, and what the thumbnails miss, ships.</p>
+        <p class="stat-line">single build script · <b>writes: 2</b> · fixes: edit + regenerate</p>
+      </div>
+    </div>
+
+    <div class="bm-rounds rv">
+      <div class="bm-round">
+        <div class="r-head">
+          <div class="r-name">Round 1 · create</div>
+          <div class="r-verdict">judges: 2–1 pptx skill</div>
+        </div>
+        <div class="r-body">
+          Both decks were good. Ours shipped <strong>one clipped serif headline</strong> — the linter flagged it, and the agent overrode the flag as a "false positive" without zooming in. The safety net worked; the agent talked itself past it. That's a guidance bug, and guidance we control.
+          <span class="r-fix">v2.2.0 — text-under-picture lint (<code>covered_by</code>), wider serif re-wrap margins, and a rule: no flag is "false positive" without a <code>render --crop</code> zoom</span>
+        </div>
+      </div>
+      <div class="bm-round">
+        <div class="r-head">
+          <div class="r-name">Round 2 · create</div>
+          <div class="r-verdict">judges: 2–1 pptx skill</div>
+        </div>
+        <div class="r-body">
+          Zero layout defects this time — judges called the deck "near-flawless mechanics" and one scored it a clear win. The round turned on a single compiler bug: <code>&lt;br&gt;</code> inside a table cell compiled to nothing, so one table read <strong>"Who decideswhat runs next."</strong> All three judges found it.
+          <span class="r-fix">v2.2.1 — <code>&lt;br&gt;</code> survives as a real line break, with a regression test</span>
+        </div>
+      </div>
+      <div class="bm-round">
+        <div class="r-head">
+          <div class="r-name">Round 3 · create</div>
+          <div class="r-verdict win">judges: 2–1 deckhand, two CLEAR</div>
+        </div>
+        <div class="r-body">
+          The polish story <strong>fully inverted</strong>: 9/9/9-grade grid discipline, no overflows, no collisions — while the pptx-skill deck carried edge-bleed artifacts on three slides and a footer collision on its own closer. Its failure modes from rounds 1 and 2 simply recurred: nothing in a prompt-guidance toolchain learns between rounds.
+        </div>
+      </div>
+      <div class="bm-round">
+        <div class="r-head">
+          <div class="r-name">Round 4 · edit</div>
+          <div class="r-verdict">judges: 2–1 pptx skill · forensic audit: deckhand "cleaner by the strict letter"</div>
+        </div>
+        <div class="r-body">
+          Each agent re-themed its own deck to a 9-color palette and inserted a slide mid-narrative. Both delivered <strong>zero collateral damage</strong> and coherent renumbering. The finding that mattered: our agent had to hand-roll a recolor script, because deck.py had no color op.
+          <span class="r-fix">v2.3.0 — <code>replace-color</code>: a re-theme is now a handful of declarative ops in one atomic patch, with zero-hit errors that list the deck's actual palette</span>
+        </div>
+      </div>
+    </div>
+
+    <p class="bm-kicker rv">Read the scoreboard honestly: we lost more rounds than we won. Now read the trajectory: <strong>every deckhand defect became machinery</strong> — a lint, a compiler fix, a new op — and that failure class never came back; round 3 was won on exactly the dimension round 1 was lost on. The pptx skill's defects recurred every round, because advice to a model can't accumulate. <strong>Tools learn; prompts don't.</strong> That's the bet this whole project is built on.</p>
+  </div>
+</section>
+
 <section id="story">
   <div class="wrap sect-pad">
     <div class="rv">
-      <p class="eyebrow"><span class="secno">§ 07</span>Provenance</p>
+      <p class="eyebrow"><span class="secno">§ 08</span>Provenance</p>
       <h2 class="sect">We use this <em>every week</em></h2>
       <p class="lede">deckhand wasn't built as a demo. We built it to make <strong>our own decks</strong> — every training <a href="https://every.to/consulting">Every Consulting</a> runs ships with a branded deck, and our agents build them with deckhand: same master template, same brand, same review standards, with agents doing the assembly, the edits, and the visual QA.</p>
       <p class="lede" style="margin-top:16px;">And the hard parts were learned on client work. With one client whose deck production ran on human hours — <strong>a person spent hours on every deck, and the team spent hundreds of hours</strong> — we ran an earlier version of this pipeline. It surfaced every way agents fail at PPTX, and those failures became this tool's design. The failure-mode list above isn't theory; <strong>it's field notes</strong>. Now it's yours.</p>
@@ -958,7 +1086,7 @@
 <section id="install">
   <div class="wrap sect-pad">
     <div class="rv">
-      <p class="eyebrow"><span class="secno">§ 08</span>Install</p>
+      <p class="eyebrow"><span class="secno">§ 09</span>Install</p>
       <h2 class="sect">Three ways in. <em>Pick yours.</em></h2>
       <p class="lede">deckhand is packaged as an Agent Skill — but underneath it's just a CLI, so any agent that can run a shell command can use it.</p>
     </div>

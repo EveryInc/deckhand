@@ -40,6 +40,7 @@ python scripts/deck.py deck.pptx diff out.pptx               # structural change
   {"op":"swap-image",  "slide":3, "shape":"s9",  "image":"/abs/new.png"},
   {"op":"swap-image",  "media":"image13.png",    "image":"/abs/logo.png"},
   {"op":"replace-text","scope":"deck", "from":"Old Name", "to":"New Name"},
+  {"op":"replace-color","scope":"deck", "from":"E8A33D", "to":"F8DE6E"},
   {"op":"set-notes",   "slide":3, "notes":"speaker notes"},
   {"op":"move",        "slide":3, "shape":"s12", "to":[1.0,2.5]},
   {"op":"resize",      "slide":3, "shape":"s12", "size":[4.0,1.5]},

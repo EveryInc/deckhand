@@ -63,7 +63,7 @@ shapes on slide 0:
 | | |
 |---|---|
 | **Read** | `inspect` — shape ids, geometry (inches), text + formatting + per-run breakdowns, image rIds + media names, table contents, fills/gradients/borders, rotation, detected issues; `--master` for masters/layouts |
-| **Edit** | `set-text` (formatting-inheriting), `replace-text` (deck/master/slide scope), `swap-image` (per-slide or deck-wide via media bytes), `set-style` (fonts, solid/gradient fills, borders, rotation), `move`, `resize`, `delete`, `set-notes` |
+| **Edit** | `set-text` (formatting-inheriting), `replace-text` (deck/master/slide scope), `replace-color` (the re-theme primitive — one op per palette mapping), `swap-image` (per-slide or deck-wide via media bytes), `set-style` (fonts, solid/gradient fills, borders, rotation), `move`, `resize`, `delete`, `set-notes` |
 | **Create** | `add-slide` (by layout), `add-shape` (textbox, autoshapes, any MSO_SHAPE name, lines), `add-picture` (aspect-preserving), `add-table` (style-neutralized), `duplicate`, `copy-shape` (across slides, relationships re-homed) |
 | **Create from HTML** | `html2patch.py` — write a slide as HTML/CSS, get a deck.py patch back: measured boxes, formatted runs, gradients, rounded corners, bullets, tables, images, rotation |
 | **Structure** | `reorder` (z-order), `add-row`/`delete-row`/`add-col`/`delete-col` (formatting-inheriting, width-rescaling, merged-cell guard), `slides` (reorder/duplicate/delete), `merge` (pull slides from another deck) |
@@ -129,6 +129,10 @@ pytest tests/ -v
 ```
 
 No binary fixtures: tests generate their decks with python-pptx on the fly.
+
+## Benchmarked, not just claimed
+
+We raced an agent on deckhand against the same agent on Anthropic's pptx skill — same briefs, same model, three from-scratch decks plus a heavy re-theme-and-insert edit, every round blind-judged by three independent judges. We lost more rounds than we won, and published that: the point is the trajectory. Every deckhand defect the judges found became machinery in the tool (the text-under-picture lint, serif re-wrap margins, the `<br>` table fix, the `replace-color` op), and that failure class never recurred — while the other toolchain's defects repeated every round. The full story is on [the landing page](https://everyinc.github.io/deckhand/#benchmark).
 
 ## Who built this
 

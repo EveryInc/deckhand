@@ -265,6 +265,38 @@ def test_diff_reports_changes(deck, tmp_path):
     assert "Hello World -> Changed" in r.stdout and "moved" in r.stdout
 
 
+def test_replace_color_deck_wide(deck, tmp_path):
+    out1 = tmp_path / "colored.pptx"
+    r = apply_patch(deck, [
+        {"op": "set-style", "slide": 0, "shape": find_sid(inspect(deck, "--slide", "0"), 0, paragraphs="Hello World"),
+         "fill": "E8A33D", "color": "112233"},
+    ], out1)
+    assert r.returncode == 0, r.stdout + r.stderr
+    out2 = tmp_path / "rethemed.pptx"
+    r = apply_patch(out1, [
+        {"op": "replace-color", "from": "E8A33D", "to": "0F5258"},
+        {"op": "replace-color", "from": "#112233", "to": "FFFEFB"},  # leading # tolerated
+    ], out2)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "replace-color" in r.stdout and "E8A33D -> 0F5258" in r.stdout
+    data = inspect(out2, "--slide", "0")
+    blob = json.dumps(data)
+    assert "0F5258" in blob and "FFFEFB" in blob
+    assert "E8A33D" not in blob and "112233" not in blob
+
+
+def test_replace_color_zero_hits_lists_palette(deck, tmp_path):
+    out1 = tmp_path / "colored.pptx"
+    sid = find_sid(inspect(deck, "--slide", "0"), 0, paragraphs="Hello World")
+    apply_patch(deck, [{"op": "set-style", "slide": 0, "shape": sid, "fill": "AA00BB"}], out1)
+    r = apply_patch(out1, [{"op": "replace-color", "from": "123456", "to": "0F5258"}], tmp_path / "no.pptx")
+    assert r.returncode != 0
+    assert "not found" in r.stdout and "AA00BB" in r.stdout  # error names the real palette
+    # bad hex is caught at validation
+    r = apply_patch(out1, [{"op": "replace-color", "from": "red", "to": "0F5258"}], tmp_path / "no2.pptx")
+    assert r.returncode != 0 and "6-digit hex" in r.stdout
+
+
 def test_lint_flags_text_under_picture(deck, tmp_path, img):
     # text first, picture later in z-order and intersecting → text renders
     # clipped behind the picture; apply must report covered_by

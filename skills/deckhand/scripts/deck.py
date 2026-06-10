@@ -67,6 +67,7 @@ import contextlib
 import copy
 import io
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -898,6 +899,63 @@ def op_replace_text(ctx, op):
     )
 
 
+def _hex(v, what):
+    v = str(v).lstrip("#").upper()
+    if not re.fullmatch(r"[0-9A-F]{6}", v):
+        raise PatchError("%s must be a 6-digit hex color, got '%s'" % (what, v))
+    return v
+
+
+def op_replace_color(ctx, op):
+    """Swap one concrete color for another everywhere in scope — the re-theme
+    primitive. Touches srgbClr values in fills, lines, gradients, text, and
+    effects; theme-indexed colors (schemeClr) are untouched by design (remap
+    those in the theme, not per use)."""
+    frm = _hex(op["from"], "replace-color from")
+    to = _hex(op["to"], "replace-color to")
+    scope = op.get("scope", "deck")
+    elements = []
+    if scope == "deck":
+        elements = [("slide %d" % i, s._element) for i, s in enumerate(ctx.prs.slides)]
+    elif scope == "slide":
+        if "slide" not in op:
+            raise PatchError("replace-color scope 'slide' needs a 'slide' index")
+        elements = [("slide %d" % op["slide"], ctx.prs.slides[op["slide"]]._element)]
+    elif scope == "master":
+        for mi, master in enumerate(ctx.prs.slide_masters):
+            elements.append(("master %d" % mi, master._element))
+            for li, layout in enumerate(master.slide_layouts):
+                elements.append(("master %d layout %d" % (mi, li), layout._element))
+    else:
+        raise PatchError("replace-color scope must be deck|master|slide, got '%s'" % scope)
+    count = 0
+    where = []
+    for label, el in elements:
+        for node in el.iter(qn("a:srgbClr")):
+            if (node.get("val") or "").upper() == frm:
+                node.set("val", to)
+                count += 1
+                where.append(label)
+    if count == 0:
+        # help the agent: list what IS there so it can correct in one pass
+        seen = {}
+        for label, el in elements:
+            for node in el.iter(qn("a:srgbClr")):
+                v = (node.get("val") or "").upper()
+                seen[v] = seen.get(v, 0) + 1
+        top = ", ".join("%s (x%d)" % kv for kv in sorted(seen.items(), key=lambda kv: -kv[1])[:12])
+        raise PatchError(
+            "replace-color: %s not found in scope '%s'. Colors present: %s" % (frm, scope, top)
+        )
+    if scope in ("deck", "slide"):
+        for label in set(where):
+            ctx.touched.add(int(label.split()[1]))
+    ctx.log.append(
+        "replace-color [%s] %s -> %s (%d occurrence(s) across %s)"
+        % (scope, frm, to, count, ", ".join(sorted(set(where))))
+    )
+
+
 def op_set_notes(ctx, op):
     slide = ctx.prs.slides[op["slide"]]
     slide.notes_slide.notes_text_frame.text = op["notes"]
@@ -1479,6 +1537,7 @@ OP_HANDLERS = {
     "set-text": op_set_text,
     "swap-image": op_swap_image,
     "replace-text": op_replace_text,
+    "replace-color": op_replace_color,
     "set-notes": op_set_notes,
     "move": op_move,
     "resize": op_resize,
@@ -1581,6 +1640,15 @@ def validate_ops(ctx, ops):
             errors.append('%s: needs "z": front|back|forward|backward' % tag)
         if kind == "replace-text" and ("from" not in op or "to" not in op):
             errors.append("%s: needs 'from' and 'to'" % tag)
+        if kind == "replace-color":
+            if "from" not in op or "to" not in op:
+                errors.append("%s: needs 'from' and 'to' (6-digit hex)" % tag)
+            else:
+                for k in ("from", "to"):
+                    try:
+                        _hex(op[k], "'%s'" % k)
+                    except PatchError as e:
+                        errors.append("%s: %s" % (tag, e))
         if kind == "set-notes" and "notes" not in op:
             errors.append("%s: needs 'notes'" % tag)
         if kind == "set-text":
@@ -2268,6 +2336,18 @@ replace-text   {"op":"replace-text","scope":"deck","from":"Globex","to":"Acme"}
     names the affected slides — use set-text on those shapes instead.
   - Errors if zero occurrences (so a silent no-op can't pass review).
 
+replace-color  {"op":"replace-color","scope":"deck","from":"E8A33D","to":"F8DE6E"}
+  - The re-theme primitive: swaps one concrete color for another everywhere
+    in scope — fills, gradients, lines, text, effects. Same scopes as
+    replace-text. One op per palette mapping; a full re-theme is a handful
+    of ops in one atomic patch.
+  - Only literal (srgbClr) colors match. Theme-indexed colors (schemeClr)
+    are deliberately untouched — remap those once in the theme via xml.
+  - Errors if zero occurrences, and the error lists the colors actually
+    present (with counts) so the next patch can be exact.
+  - Colors inside IMAGES don't change (pixels aren't XML) — re-render and
+    look; swap-image any asset that carries the old palette.
+
 set-notes      {"op":"set-notes","slide":3,"notes":"plain text speaker notes"}
 move           {"op":"move","slide":3,"shape":"s12","to":[1.0,2.5]}     or "by":[dx,dy]
 resize         {"op":"resize","slide":3,"shape":"s12","size":[4.0,1.5]} or "scale":0.8
@@ -2397,6 +2477,10 @@ OUT OF SCOPE (use the xml escape hatch, or do it in PowerPoint)
 
 RECIPES
   Rebrand a deck:      replace-text scope master (footer) + scope deck (mentions)
+  Re-theme a deck:     inspect the palette (xml get + grep srgbClr, or render),
+                       then ONE patch of replace-color ops — one per mapping,
+                       deck + master scope; render and check images for
+                       old-palette pixels baked into pictures
   Scale a 3-item list to 5: two duplicates with offsets + text, then fix
   Make text fit:       prefer set-text with shorter copy; else set-style
                        font_size; else resize; fix handles the remainder
