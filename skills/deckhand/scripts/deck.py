@@ -168,6 +168,7 @@ class Rec:
                 if rid and rid in part.rels:
                     self.rids.append((rid, part.rels[rid].target_ref.split("/")[-1]))
         self.sd = None  # ShapeData, attached when measuring
+        self.covered_by = {}  # {picture_sid: sq in} — pictures above this text in z-order
 
     def text_preview(self, n=48):
         if self.is_text:
@@ -247,6 +248,24 @@ def build_index(prs, measure=False, only_slides=None):
                 from inventory import detect_overlaps
 
                 detect_overlaps(sds)
+            # text drawn BELOW a picture in z-order renders clipped/hidden
+            # behind it — include estimated overflow, since a re-wrapped last
+            # line that slides under a picture is invisible in thumbnails.
+            # (Text drawn ON TOP of a picture is normal design; not flagged.)
+            from inventory import calculate_overlap
+
+            rec_list = list(recs.values())
+            for i, r in enumerate(rec_list):
+                if not r.is_text or r.sd is None:
+                    continue
+                ov = r.sd.frame_overflow_bottom or 0
+                trect = (r.left, r.top, r.width, r.height + ov)
+                for o in rec_list[i + 1:]:
+                    if o.type != "PICTURE":
+                        continue
+                    hit, area = calculate_overlap(trect, (o.left, o.top, o.width, o.height))
+                    if hit:
+                        r.covered_by[o.sid] = area
         index[slide_idx] = recs
     return index
 
@@ -275,6 +294,8 @@ def rec_issues(rec):
             out["slide_overflow_bottom"] = rec.sd.slide_overflow_bottom
     if rec.sd.overlapping_shapes:
         out["overlaps"] = rec.sd.overlapping_shapes
+    if rec.covered_by:
+        out["covered_by"] = rec.covered_by
     if rec.sd.warnings:
         out["warnings"] = rec.sd.warnings
     return out
@@ -1637,7 +1658,12 @@ def cmd_apply(args):
     for key, iss in after.items():
         prev = before.get(key, {})
         for k, v in iss.items():
-            if k in ("overlaps", "warnings"):
+            if k == "covered_by":
+                if k not in prev:
+                    new_issues.append(
+                        "slide %d %s: text extends under picture(s) %s — it renders CLIPPED behind them"
+                        % (key[0], key[1], v))
+            elif k in ("overlaps", "warnings"):
                 if k not in prev:
                     new_issues.append("slide %d %s: new %s %s" % (key[0], key[1], k, v))
             elif isinstance(v, (int, float)) and v > prev.get(k, 0) + 0.05:
@@ -1825,6 +1851,14 @@ def cmd_fix(args):
                             "issue": "overlaps %s by %.2f sq in (needs judgment — could be intentional design)" % (other_sid, area),
                             "suggest": suggest,
                         })
+
+            if "covered_by" in iss:
+                for pic_sid, area in iss["covered_by"].items():
+                    residue.append({
+                        "slide": slide_idx, "shape": sid,
+                        "issue": "text extends under PICTURE %s by %.2f sq in — it renders clipped/hidden behind the picture" % (pic_sid, area),
+                        "suggest": "reorder %s z:front to draw the text on top, or move/shrink them apart" % sid,
+                    })
 
     if fixed:
         prs.save(out_path)
@@ -2171,7 +2205,8 @@ GOLDEN RULES
 - Patches are ATOMIC: every op is validated first (all errors reported at
   once, listing the slide's real shapes), then applied all-or-nothing.
 - After apply, the tool lints and reports only NEW/WORSENED geometry issues,
-  with the exact `fix` command to run.
+  with the exact `fix` command to run. A `covered_by` report (text under a
+  picture) means the text RENDERS CLIPPED — treat it as real, not stylistic.
 
 THE EDIT LOOP
   inspect --slide N  →  write patch  →  apply  →  fix --slides <touched>
@@ -2333,6 +2368,9 @@ INSPECT FIELDS
     frame_overflow_bottom  text taller than its box (inches over)
     slide_overflow_right/bottom  shape sticks off the slide
     overlaps  {other_sid: sq inches}  (text-vs-text only)
+    covered_by  {picture_sid: sq inches}  text drawn UNDER a picture that is
+      above it in z-order — including its estimated overflow region. This
+      text renders clipped/hidden; it is almost never a false positive.
   --issues = only problem shapes; --master = masters/layouts too (footers!)
 
 DECK STRUCTURE (subcommands, not patch ops)

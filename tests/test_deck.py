@@ -265,6 +265,51 @@ def test_diff_reports_changes(deck, tmp_path):
     assert "Hello World -> Changed" in r.stdout and "moved" in r.stdout
 
 
+def test_lint_flags_text_under_picture(deck, tmp_path, img):
+    # text first, picture later in z-order and intersecting → text renders
+    # clipped behind the picture; apply must report covered_by
+    out = tmp_path / "covered.pptx"
+    r = apply_patch(deck, [
+        {"op": "add-shape", "slide": 2, "kind": "textbox", "at": [1, 3], "size": [4, 1],
+         "text": ["headline that gets trapped"], "name": "trapped"},
+        {"op": "add-picture", "slide": 2, "image": str(img), "at": [2, 3.2], "width": 3},
+    ], out)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "CLIPPED" in r.stdout
+    data = inspect(out, "--slide", "2")
+    entry = json.dumps(shapes_of(data, 2))
+    assert "covered_by" in entry
+    # fix reports it as residue with a z-order suggestion (never auto-resolved)
+    r = run(out, "fix", "--slides", "2", "--in-place")
+    assert "under PICTURE" in r.stdout and "z:front" in r.stdout
+
+
+def test_text_on_top_of_picture_not_flagged(deck, tmp_path, img):
+    # picture first, text later in z-order → text draws ON TOP: normal design
+    out = tmp_path / "ontop.pptx"
+    r = apply_patch(deck, [
+        {"op": "add-picture", "slide": 2, "image": str(img), "at": [2, 3.2], "width": 3},
+        {"op": "add-shape", "slide": 2, "kind": "textbox", "at": [1, 3], "size": [4, 1],
+         "text": ["caption over the image"], "name": "caption"},
+    ], out)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "covered_by" not in r.stdout and "CLIPPED" not in r.stdout
+
+
+def test_overflowing_text_reaching_under_picture_is_flagged(deck, tmp_path, img):
+    # the box itself clears the picture, but the ESTIMATED overflow runs under
+    # it — the exact defect a thumbnail hides (re-wrapped last line clipped)
+    out = tmp_path / "reach.pptx"
+    long_text = "A very long serif headline that wraps far past its box. " * 10
+    r = apply_patch(deck, [
+        {"op": "add-shape", "slide": 2, "kind": "textbox", "at": [1, 1], "size": [3, 0.4],
+         "text": [{"text": long_text, "font_size": 28}], "name": "spill"},
+        {"op": "add-picture", "slide": 2, "image": str(img), "at": [1, 2.5], "width": 3},
+    ], out)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert "CLIPPED" in r.stdout
+
+
 @pytest.mark.skipif(shutil.which("soffice") is None, reason="LibreOffice not installed")
 def test_render_names_by_zero_based_index(deck, tmp_path):
     imgdir = tmp_path / "img"

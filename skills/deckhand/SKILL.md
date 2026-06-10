@@ -94,8 +94,13 @@ python scripts/deck.py deck.pptx apply patch.json -o out.pptx --render img/
   the template layout); `--slide N` targets an existing slide instead. Multiple
   files compile into ONE atomic patch.
 - Apply compiled patches WITHOUT `--fix` first — geometry is browser-measured,
-  so trust the render and look at it; run `fix` only if the render shows a
-  real problem.
+  so look at the render before repairing; run `fix` only if the render shows
+  a real problem.
+- NEVER dismiss an overflow or `covered_by` flag on display-size text without
+  zooming that exact shape: `render --slide N --crop l,t,w,h --scale 2`.
+  Serif faces wrap differently in PowerPoint than in the browser — a clipped
+  last line is invisible at thumbnail size, especially when it falls behind
+  a picture.
 - Extra dependency: `pip install playwright && playwright install chromium`.
 
 ## Deck structure (subcommands, not patch ops)

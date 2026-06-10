@@ -395,6 +395,16 @@ EXTRACT_JS = r"""
 """
 
 
+# Faces whose PowerPoint metrics run widest of the browser's. A re-wrapped
+# line is the worst drift there is: the last line clips or hides under
+# whatever sits below, so these get double the width safety margin.
+SERIF_FACES = {
+    "georgia", "times", "times new roman", "palatino", "palatino linotype",
+    "garamond", "book antiqua", "baskerville", "didot", "cambria",
+    "constantia", "hoefler text",
+}
+
+
 def px2in(v):
     return round(v / PX_PER_IN, 3)
 
@@ -461,18 +471,17 @@ def text_block_ops(item, slide_ref, name, warnings):
     box = dict(item["box"])
     paras = item["paragraphs"]
 
-    # PPT draws text a touch wider than the browser: widen single-line boxes ~2%
-    # in the direction that keeps the anchored edge still.
-    line_px = max(
-        [meta["lineHeightPx"]] + [p.get("lineHeightPx", 0) for p in paras]
-    )
-    if len(paras) == 1 and box["h"] <= line_px * 1.5:
-        extra = box["w"] * 0.02
-        if meta["align"] == "center":
-            box["x"] -= extra / 2
-        elif meta["align"] == "right":
-            box["x"] -= extra
-        box["w"] += extra
+    # PPT draws text a touch wider than the browser, and serif faces drift the
+    # most — enough to re-wrap a line, and the re-wrapped last line clips or
+    # hides under whatever sits below. Widen EVERY box in the direction that
+    # keeps the anchored edge still, so PPT-side wrap points match the browser's.
+    fonts = {(r["style"]["font"] or "").lower() for p in paras for r in p["runs"]}
+    extra = box["w"] * (0.04 if fonts & SERIF_FACES else 0.02)
+    if meta["align"] == "center":
+        box["x"] -= extra / 2
+    elif meta["align"] == "right":
+        box["x"] -= extra
+    box["w"] += extra
 
     if any(r["style"].get("alpha", 1) < 1 for p in paras for r in p["runs"]):
         warnings.append("text alpha < 1 dropped (no transparency in this model)")

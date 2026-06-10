@@ -102,8 +102,12 @@ The render loop is the mirror: compile, `--render`, and LOOK at every slide
 image — never declare a deck done from the patch alone. Check it as a
 sequence, not as nine separate compositions: do the margins hold? does the
 eyebrow row sit at the same height? does the accent color appear on every
-slide or pool on one? Heed the linter on overflows and collisions; trust the
-render over the estimator when they disagree on a healthy text box.
+slide or pool on one? Heed the linter on overflows and collisions — and
+before you call any flag a false positive, zoom the exact shape
+(`render --crop l,t,w,h --scale 2`). Serif display headlines are where
+browser and PowerPoint metrics diverge most, and a re-wrapped last line
+hides at thumbnail size, especially when it falls behind a picture. Only a
+clean zoom earns the words "false positive".
 
 Then the last pass: find the least necessary element on each slide — the
 extra divider, the third accent, the label nobody needs — and take it off.

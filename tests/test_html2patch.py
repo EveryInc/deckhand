@@ -127,6 +127,27 @@ def test_nested_bullets_no_duplication(tmp_path):
     assert [p["bullet"] for p in boxes[1]["text"]] == ["number", "number"]
 
 
+def test_widening_applies_to_all_blocks_and_serif_gets_more(tmp_path):
+    # PPT redraws text wider than the browser; every block gets widened in its
+    # anchor direction — 2% for sans faces, 4% for re-wrap-prone serif faces.
+    html = (
+        "<html><head><style>" + BODY % ""
+        + "p { position:absolute; left:96px; width:600px; font:32px Georgia; }"
+        ".serif { top:96px; }"
+        ".sans  { top:400px; font-family: Arial; }"
+        "</style></head><body>"
+        "<p class='serif'>A long serif headline that wraps onto several lines here</p>"
+        "<p class='sans'>A long sans headline that wraps onto several lines here</p>"
+        "</body></html>"
+    )
+    patch, _, _ = compile_html(tmp_path, html)
+    serif, sans = [o for o in patch["ops"] if o.get("kind") == "textbox"]
+    # 600px = 6.25"; serif: ×1.04 = 6.5", sans: ×1.02 = 6.375"; left edge anchored
+    assert abs(serif["size"][0] - 6.5) < 0.02, serif["size"]
+    assert abs(sans["size"][0] - 6.375) < 0.02, sans["size"]
+    assert abs(serif["at"][0] - 1.0) < 0.02 and abs(sans["at"][0] - 1.0) < 0.02
+
+
 def test_object_fit_cover_and_figcaption(tmp_path):
     from PIL import Image
 
