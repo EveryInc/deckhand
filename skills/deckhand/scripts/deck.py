@@ -566,6 +566,9 @@ def cmd_inspect(args):
                 notes = s.notes_slide.notes_text_frame.text.strip()
                 if notes:
                     slide_out["_notes"] = notes
+            tr = _transition_dict(s)
+            if tr:
+                slide_out["_transition"] = tr
         if slide_out or not args.issues:
             if not args.issues or slide_out:
                 out["slides"][str(slide_idx)] = slide_out
@@ -998,10 +1001,76 @@ def op_set_props(ctx, op):
     ctx.log.append("set-props %s" % ", ".join(changed))
 
 
+# transition type -> (p: element local name, {option: valid values})
+TRANSITION_TYPES = {
+    "fade":     ("fade",     {}),
+    "cut":      ("cut",      {}),
+    "dissolve": ("dissolve", {}),
+    "push":     ("push",     {"dir": ("l", "r", "u", "d")}),
+    "wipe":     ("wipe",     {"dir": ("l", "r", "u", "d")}),
+    "split":    ("split",    {"orient": ("horz", "vert"), "dir": ("in", "out")}),
+    "cover":    ("cover",    {"dir": ("l", "r", "u", "d", "ld", "lu", "rd", "ru")}),
+    "uncover":  ("pull",     {"dir": ("l", "r", "u", "d", "ld", "lu", "rd", "ru")}),
+    "zoom":     ("zoom",     {"dir": ("in", "out")}),
+}
+TRANSITION_EL_TO_TYPE = {el: t for t, (el, _) in TRANSITION_TYPES.items()}
+TRANSITION_SPEEDS = ("slow", "med", "fast")
+
+
+def _transition_dict(slide):
+    """Read a slide's p:transition into the same vocabulary set-slide takes."""
+    el = slide._element.find(qn("p:transition"))
+    if el is None:
+        return None
+    out = {}
+    for child in el:
+        local = child.tag.rsplit("}", 1)[-1]
+        out["type"] = TRANSITION_EL_TO_TYPE.get(local, local)
+        for k in ("dir", "orient"):
+            if child.get(k):
+                out[k] = child.get(k)
+        break
+    if el.get("spd"):
+        out["speed"] = el.get("spd")
+    if el.get("advTm") is not None:
+        out["advance_after"] = int(el.get("advTm")) / 1000.0
+    if el.get("advClick") == "0":
+        out["advance_on_click"] = False
+    return out
+
+
 def op_set_slide(ctx, op):
-    """Slide-level properties: hidden, background."""
+    """Slide-level properties: hidden, background, transition."""
     slide = ctx.prs.slides[op["slide"]]
     done = []
+    if "transition" in op:
+        tr = op["transition"]
+        sld = slide._element
+        old = sld.find(qn("p:transition"))
+        if old is not None:
+            sld.remove(old)
+        if tr == "none":
+            done.append("transition removed")
+        else:
+            el_name, optspec = TRANSITION_TYPES[tr["type"]]
+            tr_el = sld.makeelement(qn("p:transition"), {})
+            if "speed" in tr:
+                tr_el.set("spd", tr["speed"])
+            if tr.get("advance_on_click") is False:
+                tr_el.set("advClick", "0")
+            if "advance_after" in tr:
+                tr_el.set("advTm", str(int(round(float(tr["advance_after"]) * 1000))))
+            eff = tr_el.makeelement(qn("p:" + el_name), {})
+            for k in optspec:
+                if k in tr:
+                    eff.set(k, tr[k])
+            tr_el.append(eff)
+            # schema order: p:cSld, p:clrMapOvr, p:transition, p:timing
+            anchor = sld.find(qn("p:clrMapOvr"))
+            if anchor is None:
+                anchor = sld.find(qn("p:cSld"))
+            anchor.addnext(tr_el)
+            done.append("transition=%s" % tr["type"])
     if "hidden" in op:
         if op["hidden"]:
             slide._element.set("show", "0")
@@ -1058,7 +1127,7 @@ def op_set_slide(ctx, op):
                 'or {"image": "/abs/path.png"}'
             )
     if not done:
-        raise PatchError('set-slide: give "hidden" and/or "background"')
+        raise PatchError('set-slide: give "hidden", "background" and/or "transition"')
     ctx.touched.add(op["slide"])
     ctx.log.append("set-slide %d: %s" % (op["slide"], ", ".join(done)))
 
@@ -1292,10 +1361,50 @@ def op_set_style(ctx, op):
     ctx.log.append("set-style slide %d %s (%d run(s)/fill/line)" % (op["slide"], rec.sid, styled))
 
 
+def _prune_timing_refs(slide_el, native_id):
+    """Drop animation effects and build entries that target a shape id, so a
+    deleted shape never leaves dangling spTgt references in the timing tree."""
+    timing = slide_el.find(qn("p:timing"))
+    if timing is None:
+        return
+    for tgt in list(timing.findall(".//" + qn("p:spTgt"))):
+        if tgt.get("spid") != str(native_id):
+            continue
+        node = tgt  # remove the innermost p:par (the effect's own timing node)
+        while node is not None and node.tag != qn("p:par"):
+            node = node.getparent()
+        if node is not None and node.getparent() is not None:
+            node.getparent().remove(node)
+    for bld in list(timing.findall(".//" + qn("p:bldP"))):
+        if bld.get("spid") == str(native_id):
+            bld.getparent().remove(bld)
+    changed = True
+    while changed:  # cascade: drop containers the removal left empty
+        changed = False
+        for ctl in timing.findall(".//" + qn("p:childTnLst")):
+            if len(ctl) == 0:
+                holder = ctl.getparent().getparent()  # the par/seq around the cTn
+                if holder is not None and holder.getparent() is not None:
+                    holder.getparent().remove(holder)
+                    changed = True
+                    break
+        if not changed:
+            for lst in (timing.find(qn("p:bldLst")), timing.find(qn("p:tnLst"))):
+                if lst is not None and len(lst) == 0:
+                    timing.remove(lst)
+                    changed = True
+    if len(timing) == 0:
+        slide_el.remove(timing)
+
+
 def op_delete(ctx, op):
     rec = ctx.rec(op["slide"], op["shape"])
     el = rec.shape._element
+    slide_el = ctx.prs.slides[op["slide"]]._element
+    ids = [c.get("id") for c in el.iter(qn("p:cNvPr")) if c.get("id")]
     el.getparent().remove(el)
+    for native_id in ids:  # a group brings its members' animations with it
+        _prune_timing_refs(slide_el, native_id)
     ctx.reindex_slide(op["slide"])
     ctx.log.append("delete slide %d %s (%s)" % (op["slide"], rec.sid, rec.name))
 
@@ -1840,8 +1949,46 @@ def validate_ops(ctx, ops):
         if kind == "set-slide":
             if "slide" not in op:
                 errors.append("%s: needs 'slide'" % tag)
-            if not ("hidden" in op or "background" in op):
-                errors.append("%s: give \"hidden\" and/or \"background\"" % tag)
+            if not ("hidden" in op or "background" in op or "transition" in op):
+                errors.append("%s: give \"hidden\", \"background\" and/or \"transition\"" % tag)
+            if "transition" in op and op["transition"] != "none":
+                tr = op["transition"]
+                if not isinstance(tr, dict) or "type" not in tr:
+                    errors.append(
+                        '%s: "transition" takes {"type":"fade",...} or "none" — types: %s'
+                        % (tag, ", ".join(sorted(TRANSITION_TYPES)))
+                    )
+                elif tr["type"] not in TRANSITION_TYPES:
+                    errors.append(
+                        "%s: transition type '%s' unknown — types: %s (or \"none\" to remove)"
+                        % (tag, tr["type"], ", ".join(sorted(TRANSITION_TYPES)))
+                    )
+                else:
+                    _, optspec = TRANSITION_TYPES[tr["type"]]
+                    for k, v in tr.items():
+                        if k == "type":
+                            continue
+                        elif k == "speed":
+                            if v not in TRANSITION_SPEEDS:
+                                errors.append("%s: transition speed '%s' — valid: %s" % (tag, v, ", ".join(TRANSITION_SPEEDS)))
+                        elif k == "advance_after":
+                            if not isinstance(v, (int, float)) or isinstance(v, bool) or v < 0:
+                                errors.append("%s: transition advance_after must be seconds >= 0" % tag)
+                        elif k == "advance_on_click":
+                            if not isinstance(v, bool):
+                                errors.append("%s: transition advance_on_click must be true/false" % tag)
+                        elif k in optspec:
+                            if v not in optspec[k]:
+                                errors.append(
+                                    "%s: transition %s '%s' invalid for %s — valid: %s"
+                                    % (tag, k, v, tr["type"], ", ".join(optspec[k]))
+                                )
+                        else:
+                            valid = ["type", "speed", "advance_after", "advance_on_click"] + sorted(optspec)
+                            errors.append(
+                                "%s: transition key '%s' not valid for %s — valid: %s"
+                                % (tag, k, tr["type"], ", ".join(valid))
+                            )
         if kind == "set-theme":
             if not (isinstance(op.get("colors"), dict) or isinstance(op.get("fonts"), dict)):
                 errors.append("%s: give \"colors\" (dict) and/or \"fonts\" (dict)" % tag)
@@ -2341,6 +2488,11 @@ def cmd_diff(args):
                 slide_lines.append("  ~ notes changed (%d -> %d chars)" % (len(na_t.strip()), len(nb_t.strip())))
         except Exception:
             pass
+        # transition
+        tra, trb = _transition_dict(pa.slides[i]), _transition_dict(pb.slides[i])
+        if tra != trb:
+            fmt = lambda t: "none" if not t else " ".join("%s=%s" % (k, t[k]) for k in sorted(t))
+            slide_lines.append("  ~ transition %s -> %s" % (fmt(tra), fmt(trb)))
         if slide_lines:
             lines.append("slide %d:" % i)
             lines.extend(slide_lines)
@@ -2563,6 +2715,15 @@ set-slide      {"op":"set-slide","slide":3,"hidden":true,"background":"0F5258"}
     present/render unless explicitly listed). "background" paints the
     slide's own p:bg layer (under every shape): "RRGGBB",
     {"gradient":{"colors":["A","B"],"angle":90}}, or {"image":"/abs/p.png"}.
+  - "transition": {"type":"fade"} sets how the slide ENTERS; "none" removes.
+    Types: fade, cut, dissolve, push, wipe, split, cover, uncover, zoom.
+    Options: "speed" slow|med|fast; "advance_after" seconds (auto-advance;
+    click still advances unless "advance_on_click":false); per-type
+    direction "dir" — push/wipe: l r u d; cover/uncover: + ld lu rd ru;
+    split: "orient" horz|vert + "dir" in|out; zoom: "dir" in|out.
+    One op per slide; same dict on every slide for a uniform deck.
+    Transitions are MOTION — renders are static JPGs, so verify with
+    inspect ("_transition" per slide) or diff, not render.
 
 set-theme      {"op":"set-theme","colors":{"accent1":"BB7B19"},"fonts":{"major":"Georgia"}}
   - Remaps the THEME: color slots dk1 lt1 dk2 lt2 accent1-6 hlink folHlink,
@@ -2671,7 +2832,7 @@ INSPECT FIELDS
     a "runs" breakdown appears when a paragraph mixes run formats;
     "link" appears on hyperlinked runs),
   rid + media (pictures), rows (tables), fill / fill_gradient / line (when set),
-  alt_text (when set), "_fonts" + "_notes" per slide,
+  alt_text (when set), "_fonts" + "_notes" + "_transition" per slide,
   deck-level: "props" (document metadata), "hidden_slides", issues:
     frame_overflow_bottom  text taller than its box (inches over)
     slide_overflow_right/bottom  shape sticks off the slide
@@ -2699,9 +2860,10 @@ RENDER / DIFF / XML
   Use xml ONLY when no op above expresses the change.
 
 OUT OF SCOPE (use the xml escape hatch, or do it in PowerPoint)
-  Creating/editing native charts, animations, transitions, embedded video/OLE,
-  merged table cells. swap-image DOES handle replacing a chart rendered as a
-  picture; add-table covers most "chart as table" needs.
+  Creating/editing native charts, shape ANIMATIONS (slide transitions ARE
+  covered — set-slide "transition"), embedded video/OLE, merged table cells.
+  swap-image DOES handle replacing a chart rendered as a picture; add-table
+  covers most "chart as table" needs.
 
 RECIPES
   Rebrand a deck:      replace-text scope master (footer) + scope deck (mentions)

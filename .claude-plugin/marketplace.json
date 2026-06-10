@@ -4,15 +4,15 @@
     "name": "Every Consulting"
   },
   "metadata": {
-    "description": "Agent-native PowerPoint manipulation — deck.py, a CLI built around how LLM agents actually fail.",
+    "description": "Agent-native PowerPoint manipulation \u2014 deck.py, a CLI built around how LLM agents actually fail.",
     "version": "1.0.0"
   },
   "plugins": [
     {
       "name": "deckhand",
       "source": "./",
-      "description": "Agent-native PowerPoint manipulation. One CLI (deck.py) lets agents inspect, edit, create, and verify .pptx files through atomic JSON patches — with self-correcting errors, deterministic geometry repair, and built-in visual verification.",
-      "version": "2.4.0"
+      "description": "Agent-native PowerPoint manipulation. One CLI (deck.py) lets agents inspect, edit, create, and verify .pptx files through atomic JSON patches \u2014 with self-correcting errors, deterministic geometry repair, and built-in visual verification.",
+      "version": "2.5.0"
     }
   ]
 }

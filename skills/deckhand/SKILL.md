@@ -44,6 +44,7 @@ python scripts/deck.py deck.pptx diff out.pptx               # structural change
   {"op":"set-theme",   "colors":{"accent1":"BB7B19"}, "fonts":{"major":"Georgia"}},
   {"op":"set-props",   "title":"Q3 Review", "author":"Acme"},
   {"op":"set-slide",   "slide":3, "hidden":true, "background":"0F5258"},
+  {"op":"set-slide",   "slide":3, "transition":{"type":"fade","speed":"med"}},
   {"op":"set-notes",   "slide":3, "notes":"speaker notes"},
   {"op":"move",        "slide":3, "shape":"s12", "to":[1.0,2.5]},
   {"op":"resize",      "slide":3, "shape":"s12", "size":[4.0,1.5]},
@@ -139,7 +140,7 @@ python scripts/deck.py deck.pptx xml get --slide 5 -o slide5.xml   # pretty-prin
 python scripts/deck.py deck.pptx xml set slide5.xml --slide 5 -o out.pptx   # parse-checked, lint-checked
 ```
 
-Out of scope by design (use the escape hatch or PowerPoint itself): creating native charts, animations, transitions, embedded video/OLE, merged table cells.
+Out of scope by design (use the escape hatch or PowerPoint itself): creating native charts, shape animations (slide transitions ARE covered — `set-slide` `"transition"`; verify them with `inspect`/`diff`, since renders are static), embedded video/OLE, merged table cells.
 
 ## Dependencies
 

@@ -396,6 +396,106 @@ def test_set_slide_image_background(deck, tmp_path, img):
     assert inspect(out)["slide_count"] == 3
 
 
+def test_set_slide_transition_roundtrip(deck, tmp_path):
+    out = tmp_path / "trans.pptx"
+    r = apply_patch(deck, [
+        {"op": "set-slide", "slide": 0, "transition": {"type": "fade", "speed": "slow", "advance_after": 5}},
+        {"op": "set-slide", "slide": 1, "transition": {"type": "split", "orient": "vert", "dir": "out"}},
+    ], out)
+    assert r.returncode == 0, r.stdout + r.stderr
+    data = inspect(out)
+    assert data["slides"]["0"]["_transition"] == {"type": "fade", "speed": "slow", "advance_after": 5.0}
+    assert data["slides"]["1"]["_transition"] == {"type": "split", "orient": "vert", "dir": "out"}
+    xml_file = tmp_path / "s0.xml"
+    run(out, "xml", "get", "--slide", "0", "-o", xml_file)
+    xml = xml_file.read_text()
+    assert "<p:fade/>" in xml and 'spd="slow"' in xml and 'advTm="5000"' in xml
+    # schema order: p:transition must come after cSld, never inside it
+    assert xml.index("</p:cSld>") < xml.index("<p:transition")
+    # transitions show up in diff (motion never shows in renders)
+    d = run(deck, "diff", out)
+    assert "transition" in d.stdout
+    # setting again replaces, never stacks
+    out2 = tmp_path / "trans2.pptx"
+    r = apply_patch(out, [{"op": "set-slide", "slide": 0, "transition": {"type": "push", "dir": "u"}}], out2)
+    assert r.returncode == 0
+    assert inspect(out2)["slides"]["0"]["_transition"] == {"type": "push", "dir": "u"}
+    run(out2, "xml", "get", "--slide", "0", "-o", xml_file)
+    assert xml_file.read_text().count("<p:transition") == 1
+    # "none" removes
+    out3 = tmp_path / "trans3.pptx"
+    r = apply_patch(out2, [{"op": "set-slide", "slide": 0, "transition": "none"}], out3)
+    assert r.returncode == 0
+    assert "_transition" not in inspect(out3)["slides"]["0"]
+
+
+def test_set_slide_transition_validation(deck, tmp_path):
+    r = apply_patch(deck, [
+        {"op": "set-slide", "slide": 0, "transition": {"type": "swoosh"}},
+        {"op": "set-slide", "slide": 1, "transition": {"type": "split", "dir": "l"}},
+        {"op": "set-slide", "slide": 2, "transition": {"type": "fade", "speed": "ludicrous"}},
+    ], tmp_path / "no.pptx")
+    assert r.returncode != 0
+    assert "swoosh" in r.stdout and "fade" in r.stdout  # unknown type teaches the vocabulary
+    assert "invalid for split" in r.stdout and "in, out" in r.stdout
+    assert "ludicrous" in r.stdout
+    assert not (tmp_path / "no.pptx").exists()
+
+
+ANIM_EFFECT_PAR = (
+    '<p:par><p:cTn id="%(id1)d" fill="hold"><p:childTnLst>'
+    '<p:set><p:cBhvr><p:cTn id="%(id2)d" dur="1" fill="hold"/>'
+    '<p:tgtEl><p:spTgt spid="%(spid)s"/></p:tgtEl>'
+    "<p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr>"
+    '<p:to><p:strVal val="visible"/></p:to></p:set>'
+    "</p:childTnLst></p:cTn></p:par>"
+)
+ANIM_TIMING = (
+    '<p:timing xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" '
+    'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+    '<p:tnLst><p:par><p:cTn id="1" dur="indefinite" restart="never" nodeType="tmRoot">'
+    '<p:childTnLst><p:seq concurrent="1" nextAc="seek">'
+    '<p:cTn id="2" dur="indefinite" nodeType="mainSeq"><p:childTnLst>%s</p:childTnLst></p:cTn>'
+    "</p:seq></p:childTnLst></p:cTn></p:par></p:tnLst>"
+    "<p:bldLst>%s</p:bldLst></p:timing>"
+)
+
+
+def _inject_animations(path, spids):
+    """Give slide 0 a real PowerPoint timing tree: one entrance effect per shape id."""
+    from pptx.oxml import parse_xml
+
+    prs = Presentation(path)
+    pars = "".join(
+        ANIM_EFFECT_PAR % {"id1": 3 + 2 * i, "id2": 4 + 2 * i, "spid": spid}
+        for i, spid in enumerate(spids)
+    )
+    blds = "".join('<p:bldP spid="%s" grpId="0"/>' % spid for spid in spids)
+    prs.slides[0]._element.append(parse_xml(ANIM_TIMING % (pars, blds)))
+    prs.save(path)
+
+
+def test_delete_prunes_animation_refs(deck, tmp_path):
+    data = inspect(deck)
+    sid_a = find_sid(data, 0, paragraphs="Hello World")
+    sid_b = find_sid(data, 0, paragraphs="confidential")
+    _inject_animations(deck, [sid_a[1:], sid_b[1:]])
+    out = tmp_path / "del1.pptx"
+    r = apply_patch(deck, [{"op": "delete", "slide": 0, "shape": sid_a}], out)
+    assert r.returncode == 0, r.stdout + r.stderr
+    xml_file = tmp_path / "s0.xml"
+    run(out, "xml", "get", "--slide", "0", "-o", xml_file)
+    xml = xml_file.read_text()
+    assert 'spid="%s"' % sid_a[1:] not in xml  # no dangling refs to the deleted shape
+    assert 'spid="%s"' % sid_b[1:] in xml  # the other shape's animation survives
+    # deleting the last animated shape leaves no timing tree at all
+    out2 = tmp_path / "del2.pptx"
+    r = apply_patch(out, [{"op": "delete", "slide": 0, "shape": sid_b}], out2)
+    assert r.returncode == 0, r.stdout + r.stderr
+    run(out2, "xml", "get", "--slide", "0", "-o", xml_file)
+    assert "p:timing" not in xml_file.read_text()
+
+
 def test_set_theme_colors_and_fonts(deck, tmp_path):
     import zipfile as zf
 
