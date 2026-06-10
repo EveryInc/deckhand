@@ -134,6 +134,8 @@ No binary fixtures: tests generate their decks with python-pptx on the fly.
 
 We raced an agent on deckhand against the same agent on Anthropic's pptx skill — same briefs, same model, three from-scratch decks plus a heavy re-theme-and-insert edit, every round blind-judged by three independent judges. Every finding the judges produced became machinery in the tool (the text-under-picture lint, serif re-wrap margins, the `<br>` table fix, the `replace-color` op) — and that failure class never recurred, while the other toolchain's defects repeated every round. Tools learn; prompts don't. The full story is on [the landing page](https://everyinc.github.io/deckhand/#benchmark).
 
+The benchmark is a committed, repeatable eval suite, not a one-off: [`evals/`](evals/) holds the builder briefs, judge prompts, blinding script, the agent-executable runbook, and the results log of every round. Change the tool, rerun the eval, compare.
+
 ## Who built this
 
 deckhand is open-sourced from real work by [Every Consulting](https://every.to/consulting). We built it to make our own decks — every training we run ships with a branded deck, and our agents build them with deckhand. The hard parts were learned on client work: with one client whose team spent hours of a person's day on every deck — hundreds of human hours across the team — we ran an earlier version of this pipeline, and every way it failed became a design decision in this CLI. The failure modes it guards against aren't theory; they're field notes.
