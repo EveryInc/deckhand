@@ -2716,6 +2716,9 @@ set-slide      {"op":"set-slide","slide":3,"hidden":true,"background":"0F5258"}
     slide's own p:bg layer (under every shape): "RRGGBB",
     {"gradient":{"colors":["A","B"],"angle":90}}, or {"image":"/abs/p.png"}.
   - "transition": {"type":"fade"} sets how the slide ENTERS; "none" removes.
+    ONLY add transitions when the user explicitly asks for them — uninvited
+    or mixed transitions read as annoying, not polished. When asked,
+    default to ONE subtle type (fade) deck-wide.
     Types: fade, cut, dissolve, push, wipe, split, cover, uncover, zoom.
     Options: "speed" slow|med|fast; "advance_after" seconds (auto-advance;
     click still advances unless "advance_on_click":false); per-type

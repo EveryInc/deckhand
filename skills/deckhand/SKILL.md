@@ -66,6 +66,7 @@ Key semantics (details in `docs`):
 - **set-text inherits formatting**: new paragraph *i* inherits ALL formatting of old paragraph *i* — pass plain strings for routine replacement. Pass objects to override (`{"text":"Big","font_size":28}`), or `"runs"` for mixed in-paragraph formatting. Table cells: add `"cell":[row,col]`.
 - **Prefer duplicate/copy-shape over add-shape** when a styled donor exists — new shapes start from PowerPoint defaults, not the deck's design language.
 - **add-shape `"name"`** lets later ops in the same patch target the shape it creates.
+- **Transitions only on request**: never add slide transitions unless the user explicitly asks — applied uninvited or inconsistently they're annoying, not polish. When asked, default to one subtle type (fade) across the whole deck.
 - Keep new text comparable in length to the old, or let `fix` repair the overflow.
 
 ## Creating slides from HTML (html2patch)
