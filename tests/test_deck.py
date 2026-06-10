@@ -15,7 +15,7 @@ from PIL import Image
 from pptx import Presentation
 from pptx.util import Inches, Pt
 
-SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "deckhand" / "scripts"
+SCRIPTS = Path(__file__).resolve().parents[1] / "skills" / "hands-on-deck" / "scripts"
 DECK = SCRIPTS / "deck.py"
 
 

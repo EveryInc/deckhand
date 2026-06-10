@@ -1,4 +1,4 @@
-# RUNBOOK — orchestrating a deckhand eval
+# RUNBOOK — orchestrating a hands-on-deck eval
 
 You are the orchestrating agent. You launch builder subagents, verify their
 deliverables, blind the renders, launch judge subagents, unblind, tally, and write
@@ -16,15 +16,15 @@ Two invariants make the whole thing valid; protect them above all:
 
 ## Phase 0 — setup
 
-1. Pick a run root, e.g. `/tmp/deckhand-eval-<task>-<date>/`, with one private
-   subdirectory per arm: `<root>/deckhand/` and `<root>/<baseline>/`, plus
+1. Pick a run root, e.g. `/tmp/hands-on-deck-eval-<task>-<date>/`, with one private
+   subdirectory per arm: `<root>/hands-on-deck/` and `<root>/<baseline>/`, plus
    `<root>/judging/`.
 2. Toolchains on disk:
-   - deckhand arm: this repo's `skills/deckhand/` (use the checkout under test).
+   - hands-on-deck arm: this repo's `skills/hands-on-deck/` (use the checkout under test).
    - baseline arm: e.g. Anthropic's pptx skill —
      `git clone --depth 1 --filter=blob:none --sparse https://github.com/anthropics/skills /tmp/anthropic-skills && cd /tmp/anthropic-skills && git sparse-checkout set skills/pptx`
 3. Dependencies: LibreOffice (`soffice`) + Poppler (`pdftoppm`) for rendering;
-   deckhand arm needs `python-pptx Pillow` and (for the HTML create path)
+   hands-on-deck arm needs `python-pptx Pillow` and (for the HTML create path)
    `playwright` + Chromium; the baseline installs whatever its skill prescribes.
 4. For the **edit** task only: place each arm's input deck at `<armdir>/deck.pptx`
    and render the originals now (you'll need pre-edit images for the judges).
@@ -37,9 +37,9 @@ Two invariants make the whole thing valid; protect them above all:
 Take the task brief from `tasks/`, fill `{{WORKDIR}}` with the arm's directory, and
 fill `{{TOOLCHAIN_BLOCK}}` per arm:
 
-**deckhand arm:**
+**hands-on-deck arm:**
 
-> Use the **deckhand** skill at `<path to skills/deckhand>`. Start by reading its
+> Use the **hands-on-deck** skill at `<path to skills/hands-on-deck>`. Start by reading its
 > `SKILL.md` in full and follow everything it tells you to read and do (including
 > any design guidance it references). All pptx work goes through this skill's
 > scripts. Do not use any other pptx skill, library, or hand-written OOXML beyond
@@ -53,7 +53,7 @@ fill `{{TOOLCHAIN_BLOCK}}` per arm:
 > tooling and workflow. Do not use any other pptx skill or toolchain beyond what
 > the skill prescribes. You may install anything the skill's workflow requires
 > (e.g. `npm install pptxgenjs` in your working directory). Do not look in any
-> deckhand directory.
+> hands-on-deck directory.
 
 Launch both builders **in parallel, in the background**. Expect 5–15 minutes each.
 If a builder stalls past your watchdog, check its working directory before calling
@@ -78,9 +78,9 @@ where required), note it in the results log — do not fix it for them.
 
 ```bash
 python evals/scripts/blind.py setup <root>/judging \
-    --arm deckhand=<root>/deckhand/neutral \
+    --arm hands-on-deck=<root>/hands-on-deck/neutral \
     --arm <baseline>=<root>/<baseline>/neutral
-# edit task: add --orig deckhand=... --orig <baseline>=... for the pre-edit renders
+# edit task: add --orig hands-on-deck=... --orig <baseline>=... for the pre-edit renders
 ```
 
 From here until tally, refer to the decks only as A and B.
@@ -136,7 +136,7 @@ python evals/scripts/blind.py reveal <root>/judging
 ## Phase 6 — findings become machinery
 
 This phase is the reason the eval exists. For every defect any judge found in the
-**deckhand arm**, classify it:
+**hands-on-deck arm**, classify it:
 
 - **tool gap** — no op/flag could express what the builder needed → new patch op or
   flag (never a new subcommand for a little thing)
@@ -155,7 +155,7 @@ Write `evals/results/<YYYY-MM-DD>-<task>.md`:
 
 ```markdown
 # <task> — <date>
-- deckhand version: <version + commit>  |  baseline: <skill + commit>
+- hands-on-deck version: <version + commit>  |  baseline: <skill + commit>
 - builder model: <model>  |  judge model: <model>  |  setup notes: <e.g. own-deck edit>
 ## Verdicts
 <per-judge: winner, margin, one-line rationale; auditor grades if edit>

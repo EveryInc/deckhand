@@ -1,9 +1,9 @@
 ---
-name: deckhand
+name: hands-on-deck
 description: "Use this skill any time a .pptx file is involved in any way — as input, output, or both. This includes reading, analyzing, or extracting content from presentations; editing text, images, styles, or layout of existing decks; creating new slides, shapes, tables, or pictures; reordering, duplicating, or merging slides across decks; and verifying decks visually. Trigger whenever the user mentions a deck, slides, a presentation, or a .pptx filename."
 ---
 
-# deckhand — agent-native PPTX manipulation
+# hands-on-deck — agent-native PPTX manipulation
 
 One tool does everything: `scripts/deck.py`. You write a JSON *patch* describing your edits; deck.py validates and executes it atomically, then lints the result. You never need to open slide XML for routine work.
 

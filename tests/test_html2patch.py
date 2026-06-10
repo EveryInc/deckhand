@@ -1,7 +1,7 @@
 """End-to-end tests for html2patch: HTML -> patch -> deck.py apply -> inspect.
 
 Requires playwright + chromium; every test is skipped when they're missing
-(core deckhand stays usable without them).
+(core hands-on-deck stays usable without them).
 """
 
 import json
@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-SCRIPTS = Path(__file__).resolve().parent.parent / "skills" / "deckhand" / "scripts"
+SCRIPTS = Path(__file__).resolve().parent.parent / "skills" / "hands-on-deck" / "scripts"
 H2P = SCRIPTS / "html2patch.py"
 DECK = SCRIPTS / "deck.py"
 

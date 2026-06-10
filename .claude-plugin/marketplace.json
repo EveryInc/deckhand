@@ -1,5 +1,5 @@
 {
-  "name": "deckhand",
+  "name": "hands-on-deck",
   "owner": {
     "name": "Every Consulting"
   },
@@ -9,10 +9,10 @@
   },
   "plugins": [
     {
-      "name": "deckhand",
+      "name": "hands-on-deck",
       "source": "./",
       "description": "Agent-native PowerPoint manipulation. One CLI (deck.py) lets agents inspect, edit, create, and verify .pptx files through atomic JSON patches \u2014 with self-correcting errors, deterministic geometry repair, and built-in visual verification.",
-      "version": "2.5.1"
+      "version": "3.0.0"
     }
   ]
 }

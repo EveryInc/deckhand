@@ -1,8 +1,8 @@
-# deckhand
+# hands-on-deck
 
 **Agent-native PowerPoint manipulation.** One CLI — `deck.py` — lets AI agents inspect, edit, create, and verify `.pptx` files with the fidelity of a human operator: atomic JSON patches in, linted decks out.
 
-**→ [everyinc.github.io/deckhand](https://everyinc.github.io/deckhand/)**
+**→ [everyinc.github.io/hands-on-deck](https://everyinc.github.io/hands-on-deck/)**
 
 Packaged as an [Agent Skill](https://www.anthropic.com/news/skills), so it drops into Claude Code, claude.ai, and any other agent platform that supports the skills format — and because the tool itself is just a CLI, *any* agent that can run a shell command can use it.
 
@@ -18,7 +18,7 @@ python deck.py docs                                        # the full reference,
 
 A `.pptx` is a zip of XML. Agents that edit it directly hand-write OOXML — fragile, token-hungry, and one namespace typo from a corrupt file. Agents that regenerate decks from scratch lose everything a template encodes: brand, layout craft, image treatments.
 
-deckhand takes a third path: **the agent writes a declarative patch; the tool executes it.**
+hands-on-deck takes a third path: **the agent writes a declarative patch; the tool executes it.**
 
 ```json
 {"ops": [
@@ -90,25 +90,25 @@ Emitting a patch instead of a file is the whole trick:
 
 Text becomes formatted runs (inline `<b>`/`<i>`/`<span>` included); styled divs become rects with gradients, borders, and true corner radii; tables keep per-cell fills and measured column widths; `<ol>` numbers, `<ul>` bullets; `object-fit: cover` becomes a real picture crop; CSS padding maps to text insets; `transform: rotate` and `text-transform` are honored. Needs `pip install playwright && playwright install chromium` — optional, the core tool doesn't.
 
-And because a create path is only as good as what it creates, the skill ships with [designing-slides.md](skills/deckhand/designing-slides.md) — an opinionated, subject-first design guide for agents: how to refuse the default AI-deck looks, plan a token system before writing HTML, size type for a projector instead of a browser, and design with the compiler's grain. The pipeline is mechanical; that file is taste.
+And because a create path is only as good as what it creates, the skill ships with [designing-slides.md](skills/hands-on-deck/designing-slides.md) — an opinionated, subject-first design guide for agents: how to refuse the default AI-deck looks, plan a token system before writing HTML, size type for a projector instead of a browser, and design with the compiler's grain. The pipeline is mechanical; that file is taste.
 
 ## Install
 
 **Claude Code** (as a plugin):
 
 ```
-/plugin marketplace add EveryInc/deckhand
-/plugin install deckhand@deckhand
+/plugin marketplace add EveryInc/hands-on-deck
+/plugin install hands-on-deck@hands-on-deck
 ```
 
-**claude.ai / other apps that support Agent Skills**: zip `skills/deckhand/` and upload it as a skill.
+**claude.ai / other apps that support Agent Skills**: zip `skills/hands-on-deck/` and upload it as a skill.
 
 **Any agent, any platform**: clone the repo and put the output of `deck.py docs` in front of your agent. It's just a CLI.
 
 ```bash
-git clone https://github.com/EveryInc/deckhand
+git clone https://github.com/EveryInc/hands-on-deck
 pip install python-pptx Pillow
-python deckhand/skills/deckhand/scripts/deck.py docs
+python hands-on-deck/skills/hands-on-deck/scripts/deck.py docs
 ```
 
 ## Requirements
@@ -132,13 +132,13 @@ No binary fixtures: tests generate their decks with python-pptx on the fly.
 
 ## Benchmarked, not just claimed
 
-We raced an agent on deckhand against the same agent on Anthropic's pptx skill — same briefs, same model, three from-scratch decks plus a heavy re-theme-and-insert edit, every round blind-judged by three independent judges. Every finding the judges produced became machinery in the tool (the text-under-picture lint, serif re-wrap margins, the `<br>` table fix, the `replace-color` op) — and that failure class never recurred, while the other toolchain's defects repeated every round. Tools learn; prompts don't. The full story is on [the landing page](https://everyinc.github.io/deckhand/#benchmark).
+We raced an agent on hands-on-deck against the same agent on Anthropic's pptx skill — same briefs, same model, three from-scratch decks plus a heavy re-theme-and-insert edit, every round blind-judged by three independent judges. Every finding the judges produced became machinery in the tool (the text-under-picture lint, serif re-wrap margins, the `<br>` table fix, the `replace-color` op) — and that failure class never recurred, while the other toolchain's defects repeated every round. Tools learn; prompts don't. The full story is on [the landing page](https://everyinc.github.io/hands-on-deck/#benchmark).
 
 The benchmark is a committed, repeatable eval suite, not a one-off: [`evals/`](evals/) holds the builder briefs, judge prompts, blinding script, the agent-executable runbook, and the results log of every round. Change the tool, rerun the eval, compare.
 
 ## Who built this
 
-deckhand is open-sourced from real work by [Every Consulting](https://every.to/consulting). We built it to make our own decks — every training we run ships with a branded deck, and our agents build them with deckhand. The hard parts were learned on client work: with one client whose team spent hours of a person's day on every deck — hundreds of human hours across the team — we ran an earlier version of this pipeline, and every way it failed became a design decision in this CLI. The failure modes it guards against aren't theory; they're field notes.
+hands-on-deck is open-sourced from real work by [Every Consulting](https://every.to/consulting). We built it to make our own decks — every training we run ships with a branded deck, and our agents build them with hands-on-deck. The hard parts were learned on client work: with one client whose team spent hours of a person's day on every deck — hundreds of human hours across the team — we ran an earlier version of this pipeline, and every way it failed became a design decision in this CLI. The failure modes it guards against aren't theory; they're field notes.
 
 If you want your team's work automated like this — decks or anything else — [that's literally what we do](https://every.to/consulting).
 

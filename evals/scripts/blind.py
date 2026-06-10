@@ -6,9 +6,9 @@ images under neutral names (01.jpg, 02.jpg, ...), and records the assignment in 
 dotfile the judges are never shown. Originals (for edit evals) follow the same
 assignment into orig-A / orig-B.
 
-    python blind.py setup JUDGING_DIR --arm deckhand=/run/deckhand/img --arm pptx-skill=/run/pptx/img
-    python blind.py setup JUDGING_DIR --arm deckhand=... --arm pptx-skill=... \
-        --orig deckhand=/run/deckhand/orig-img --orig pptx-skill=/run/pptx/orig-img
+    python blind.py setup JUDGING_DIR --arm hands-on-deck=/run/hands-on-deck/img --arm pptx-skill=/run/pptx/img
+    python blind.py setup JUDGING_DIR --arm hands-on-deck=... --arm pptx-skill=... \
+        --orig hands-on-deck=/run/hands-on-deck/orig-img --orig pptx-skill=/run/pptx/orig-img
     python blind.py reveal JUDGING_DIR        # after ALL verdicts are in
 
 The orchestrator must not echo the assignment anywhere a judge could read it.

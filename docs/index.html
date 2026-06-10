@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>deckhand — agent-native PowerPoint manipulation</title>
+<title>hands-on-deck — agent-native PowerPoint manipulation</title>
 <meta name="description" content="One CLI lets AI agents inspect, edit, create, and verify .pptx files with the fidelity of a human operator. MIT licensed, built by Every Consulting.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -460,7 +460,7 @@
   @media (max-width: 880px) {
     .cmp-row { grid-template-columns: 1fr; }
     .cmp-head { display: none; }
-    .cmp-row > .cmp-dh::before { content: "deckhand — "; color: var(--amber); font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+    .cmp-row > .cmp-dh::before { content: "hands-on-deck — "; color: var(--amber); font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
     .cmp-outcomes { grid-template-columns: 1fr; }
   }
 
@@ -631,7 +631,7 @@
 
 <nav>
   <div class="wrap nav-inner">
-    <a class="wordmark" href="#"><span class="dollar">$</span>deckhand</a>
+    <a class="wordmark" href="#"><span class="dollar">$</span>hands-on-deck</a>
     <div class="nav-links">
       <a href="#patch-model">patch model</a>
       <a href="#principles">principles</a>
@@ -641,7 +641,7 @@
       <a href="#benchmark">the benchmark</a>
       <a href="#story">story</a>
       <a href="#install">install</a>
-      <a class="nav-gh" href="https://github.com/EveryInc/deckhand">GitHub ↗</a>
+      <a class="nav-gh" href="https://github.com/EveryInc/hands-on-deck">GitHub ↗</a>
     </div>
   </div>
 </nav>
@@ -656,19 +656,19 @@
           <span>open source</span><span class="dot">·</span>
           <span>an Agent Skill</span>
         </div>
-        <h1 class="title">deck<span class="hand">hand</span></h1>
+        <h1 class="title">hands <span class="hand">on</span><br>deck</h1>
         <p class="tagline">Agent-native PowerPoint manipulation.</p>
         <p class="hero-sub">One CLI — <code>deck.py</code> — lets AI agents inspect, edit, create, and verify <code>.pptx</code> files with the fidelity of a human operator. Works in Claude Code, claude.ai, and anywhere an agent can run a shell command.</p>
         <p class="hero-new"><span class="new-flag">new</span><a href="#html">write a slide as HTML, compile it into your deck — the browser measures, deck.py writes →</a></p>
         <div class="hero-actions">
           <div class="install-line">
             <span class="prompt">&gt;</span>
-            <span id="install-cmd"><span class="cmd-dim">/plugin</span> marketplace add EveryInc/deckhand</span>
-            <button class="copy-btn" data-copy="/plugin marketplace add EveryInc/deckhand">copy</button>
+            <span id="install-cmd"><span class="cmd-dim">/plugin</span> marketplace add EveryInc/hands-on-deck</span>
+            <button class="copy-btn" data-copy="/plugin marketplace add EveryInc/hands-on-deck">copy</button>
           </div>
-          <a class="btn-gh" href="https://github.com/EveryInc/deckhand">
+          <a class="btn-gh" href="https://github.com/EveryInc/hands-on-deck">
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
-            EveryInc/deckhand
+            EveryInc/hands-on-deck
           </a>
         </div>
       </div>
@@ -703,7 +703,7 @@
     <div class="rv">
       <p class="eyebrow"><span class="secno">§ 01</span>The problem</p>
       <h2 class="sect">A .pptx is a zip of XML.<br>There were two bad ways in.</h2>
-      <p class="lede">Agents that edit the XML directly hand-write OOXML — fragile, token-hungry, one namespace typo from a corrupt file. Agents that regenerate decks from scratch lose everything a template encodes. <strong>deckhand takes a third path.</strong></p>
+      <p class="lede">Agents that edit the XML directly hand-write OOXML — fragile, token-hungry, one namespace typo from a corrupt file. Agents that regenerate decks from scratch lose everything a template encodes. <strong>hands-on-deck takes a third path.</strong></p>
     </div>
     <div class="paths rv">
       <div class="path bad">
@@ -715,7 +715,7 @@
         <p>Rebuild the deck with a generation library. Clean code — but the master, theme colors, layouts, and every designer decision the template encodes are gone.</p>
       </div>
       <div class="path good">
-        <h3>Declarative patch <span class="verdict">deckhand</span></h3>
+        <h3>Declarative patch <span class="verdict">hands-on-deck</span></h3>
         <p>The agent writes a JSON patch describing intent — replace this text, swap that image. The tool validates everything, then executes it atomically.</p>
       </div>
     </div>
@@ -884,7 +884,7 @@
           <h4>Gradients, tables, crops — compiled, not approximated</h4>
           <p>CSS gradients become native gradient fills. Tables keep per-cell fills and measured column widths. <code>object-fit: cover</code> becomes a true picture crop. <code>&lt;ol&gt;</code> numbers, rotation rotates, padding becomes text insets.</p>
         </div>
-        <p class="patch-kicker">stress-tested against the browser, pixel by pixel — and head-to-head against the best-known HTML-to-PPTX engine on <b>its own</b> constraint set: closer to the browser's render, and where that engine reported success while silently dropping an entire table, <b>deckhand carried it</b>.</p>
+        <p class="patch-kicker">stress-tested against the browser, pixel by pixel — and head-to-head against the best-known HTML-to-PPTX engine on <b>its own</b> constraint set: closer to the browser's render, and where that engine reported success while silently dropping an entire table, <b>hands-on-deck carried it</b>.</p>
       </div>
     </div>
   </div>
@@ -922,7 +922,7 @@
         <p>When the patch model can't express it, drop to raw OOXML deliberately — with the tooling still validating the result.</p>
       </div>
     </div>
-    <p class="outscope rv"><b>Out of scope, honestly:</b> native chart objects and shape animations. deckhand does the 95% that client decks are actually made of, and says so.</p>
+    <p class="outscope rv"><b>Out of scope, honestly:</b> native chart objects and shape animations. hands-on-deck does the 95% that client decks are actually made of, and says so.</p>
   </div>
 </section>
 
@@ -931,14 +931,14 @@
     <div class="rv">
       <p class="eyebrow"><span class="secno">§ 06</span>The comparison</p>
       <h2 class="sect">Same job. <em>Different machinery.</em></h2>
-      <p class="lede">Anthropic ships a pptx skill, and parts of it are genuinely good — the design guidance reads like a designer wrote it. The difference is architectural: their guardrails are <em>advice to the model</em>. deckhand's are <strong>machinery in the tool</strong> — and advice can be ignored on exactly the slide that matters. We didn't leave that as an opinion — <a href="#benchmark">we raced them, blind-judged, four rounds — § 07</a>.</p>
+      <p class="lede">Anthropic ships a pptx skill, and parts of it are genuinely good — the design guidance reads like a designer wrote it. The difference is architectural: their guardrails are <em>advice to the model</em>. hands-on-deck's are <strong>machinery in the tool</strong> — and advice can be ignored on exactly the slide that matters. We didn't leave that as an opinion — <a href="#benchmark">we raced them, blind-judged, four rounds — § 07</a>.</p>
     </div>
 
     <div class="cmp rv">
       <div class="cmp-row cmp-head">
         <div>the moment</div>
         <div>Anthropic's pptx skill</div>
-        <div class="cmp-dh">deckhand</div>
+        <div class="cmp-dh">hands-on-deck</div>
       </div>
       <div class="cmp-row">
         <div class="cmp-m">Read the deck</div>
@@ -1004,12 +1004,12 @@
     <div class="rv">
       <p class="eyebrow"><span class="secno">§ 07</span>The benchmark · <span class="new-flag">new</span></p>
       <h2 class="sect">So we made them <em>race</em></h2>
-      <p class="lede">Claims are cheap, so we ran the experiment: same brief, same model, same plan-build-review budget — one agent on deckhand, one on Anthropic's pptx skill. Three from-scratch decks and one heavy edit task, every round judged <strong>blind</strong> by three independent judges with randomized labels and rotated viewing order. Every finding the judges produced shipped as a release — most within hours.</p>
+      <p class="lede">Claims are cheap, so we ran the experiment: same brief, same model, same plan-build-review budget — one agent on hands-on-deck, one on Anthropic's pptx skill. Three from-scratch decks and one heavy edit task, every round judged <strong>blind</strong> by three independent judges with randomized labels and rotated viewing order. Every finding the judges produced shipped as a release — most within hours.</p>
     </div>
 
     <div class="bench-duo rv">
       <div class="bd">
-        <div class="who">the agent on deckhand</div>
+        <div class="who">the agent on hands-on-deck</div>
         <h3>works like a <em>designer</em></h3>
         <p>One slide at a time: write it as HTML, compile it into the deck, render, <strong>look at it</strong>, patch what's wrong, look again. In one run that was 87 tool calls and <strong>27 separate looks at its own renders</strong> — and when a fix was needed, it was a two-line patch op, never a rebuild.</p>
         <p class="stat-line">per-slide loop · <b>renders inspected: 27</b> · fixes: surgical ops</p>
@@ -1046,7 +1046,7 @@
       <div class="bm-round">
         <div class="r-head">
           <div class="r-name">Round 3 · create</div>
-          <div class="r-verdict win">judges: 2–1 deckhand, two CLEAR verdicts</div>
+          <div class="r-verdict win">judges: 2–1 hands-on-deck, two CLEAR verdicts</div>
         </div>
         <div class="r-body">
           9/9/9-grade grid discipline, no overflows, no collisions, "airtight" typography — won on exactly the dimension round 1 slipped on. The pptx-skill deck carried edge-bleed artifacts on three slides and a footer collision on its own closer — the same failure modes as rounds 1 and 2, because nothing in a prompt-guidance toolchain learns between rounds.
@@ -1073,7 +1073,7 @@
     <div class="rv">
       <p class="eyebrow"><span class="secno">§ 08</span>Provenance</p>
       <h2 class="sect">We use this <em>every week</em></h2>
-      <p class="lede">deckhand wasn't built as a demo. We built it to make <strong>our own decks</strong> — every training <a href="https://every.to/consulting">Every Consulting</a> runs ships with a branded deck, and our agents build them with deckhand: same master template, same brand, same review standards, with agents doing the assembly, the edits, and the visual QA.</p>
+      <p class="lede">hands-on-deck wasn't built as a demo. We built it to make <strong>our own decks</strong> — every training <a href="https://every.to/consulting">Every Consulting</a> runs ships with a branded deck, and our agents build them with hands-on-deck: same master template, same brand, same review standards, with agents doing the assembly, the edits, and the visual QA.</p>
       <p class="lede" style="margin-top:16px;">And the hard parts were learned on client work. With one client whose deck production ran on human hours — <strong>a person spent hours on every deck, and the team spent hundreds of hours</strong> — we ran an earlier version of this pipeline. It surfaced every way agents fail at PPTX, and those failures became this tool's design. The failure-mode list above isn't theory; <strong>it's field notes</strong>. Now it's yours.</p>
       <div class="hero-actions" style="margin-top:34px;">
         <a class="btn-gh" href="https://every.to/consulting">Work with Every Consulting ↗</a>
@@ -1088,26 +1088,26 @@
     <div class="rv">
       <p class="eyebrow"><span class="secno">§ 09</span>Install</p>
       <h2 class="sect">Three ways in. <em>Pick yours.</em></h2>
-      <p class="lede">deckhand is packaged as an Agent Skill — but underneath it's just a CLI, so any agent that can run a shell command can use it.</p>
+      <p class="lede">hands-on-deck is packaged as an Agent Skill — but underneath it's just a CLI, so any agent that can run a shell command can use it.</p>
     </div>
     <div class="install-grid rv">
       <div class="inst">
         <p class="where">Claude Code</p>
         <h3>One command</h3>
         <p>Add the marketplace and the skill is available in every project, from any working directory.</p>
-        <div class="inst-cmd"><span class="prompt">&gt;</span> /plugin marketplace add EveryInc/deckhand<br><span class="prompt">&gt;</span> /plugin install deckhand@deckhand</div>
+        <div class="inst-cmd"><span class="prompt">&gt;</span> /plugin marketplace add EveryInc/hands-on-deck<br><span class="prompt">&gt;</span> /plugin install hands-on-deck@hands-on-deck</div>
       </div>
       <div class="inst">
         <p class="where">claude.ai</p>
         <h3>Upload the skill</h3>
         <p>Zip the skill folder and upload it under Settings → Capabilities. Claude picks it up whenever a deck shows up.</p>
-        <div class="inst-cmd"><span class="prompt">$</span> zip -r deckhand.zip skills/deckhand<br><span class="t-dim"># then upload in Settings → Capabilities</span></div>
+        <div class="inst-cmd"><span class="prompt">$</span> zip -r hands-on-deck.zip skills/hands-on-deck<br><span class="t-dim"># then upload in Settings → Capabilities</span></div>
       </div>
       <div class="inst">
         <p class="where">Any agent</p>
         <h3>It's just a CLI</h3>
         <p>Clone the repo, point your agent at the docs, and let it drive deck.py directly.</p>
-        <div class="inst-cmd"><span class="prompt">$</span> git clone https://github.com/EveryInc/deckhand<br><span class="prompt">$</span> python deckhand/skills/deckhand/scripts/deck.py docs</div>
+        <div class="inst-cmd"><span class="prompt">$</span> git clone https://github.com/EveryInc/hands-on-deck<br><span class="prompt">$</span> python hands-on-deck/skills/hands-on-deck/scripts/deck.py docs</div>
       </div>
     </div>
   </div>
@@ -1116,8 +1116,8 @@
 <footer>
   <div class="wrap foot-inner">
     <div>
-      <span class="t-amber">$</span> deckhand — MIT license<br>
-      <a href="https://github.com/EveryInc/deckhand">github.com/EveryInc/deckhand</a>
+      <span class="t-amber">$</span> hands-on-deck — MIT license<br>
+      <a href="https://github.com/EveryInc/hands-on-deck">github.com/EveryInc/hands-on-deck</a>
     </div>
     <div class="foot-sig">
       built by <a class="every" href="https://every.to/consulting">Every Consulting</a><br>

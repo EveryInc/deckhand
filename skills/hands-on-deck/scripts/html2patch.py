@@ -8,7 +8,7 @@ add-table / set-text). The output is a standard patch: apply it with
 
     python deck.py deck.pptx apply patch.json -o out.pptx --fix --render img/
 
-Design spec: docs/html2patch-spec.md in the deckhand repo. No code is shared
+Design spec: docs/html2patch-spec.md in the hands-on-deck repo. No code is shared
 with any other HTML-to-PPTX implementation.
 
 Usage:

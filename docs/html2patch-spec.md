@@ -165,13 +165,13 @@ python html2patch.py slide.html --size 13.333x7.5 --slide 0 -o patch.json
 
 ## Dependencies
 
-`playwright` (Python) + its Chromium, strictly optional to deckhand core. `--deck`
+`playwright` (Python) + its Chromium, strictly optional to hands-on-deck core. `--deck`
 additionally uses python-pptx (already a core dep). No Node, no PptxGenJS, no sharp.
 
 ## Verification contract
 
 html2patch's own job ends at a *geometrically faithful patch*. End-to-end fidelity
-is verified the deckhand way: `apply --fix --render`, then look. The test suite
+is verified the hands-on-deck way: `apply --fix --render`, then look. The test suite
 asserts (a) measured geometry round-trips within 0.02 in, (b) run styling
 round-trips through `inspect`, (c) bullets/levels, gradients, borders, insets,
 tables land as specified, (d) a patch applied to a non-blank template deck composes
