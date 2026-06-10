@@ -147,6 +147,8 @@ EXTRACT_JS = r"""
         const text = transformText(node.textContent.replace(/\s+/g, ' '), transform);
         if (text) {
           const st = runStyle(cs(node.parentElement));
+          const a = node.parentElement.closest('a[href]');
+          if (a) st.link = a.href;
           const cur = paras[paras.length - 1];
           const prev = cur[cur.length - 1];
           if (prev && JSON.stringify(prev.style) === JSON.stringify(st)) prev.text += text;
@@ -475,6 +477,8 @@ def run_to_spec(run):
     for k in ("bold", "italic", "underline"):
         if st[k]:
             spec[k] = True
+    if st.get("link"):
+        spec["link"] = st["link"]
     return spec
 
 

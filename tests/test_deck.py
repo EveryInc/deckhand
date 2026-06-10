@@ -348,3 +348,98 @@ def test_render_names_by_zero_based_index(deck, tmp_path):
     r = run(deck, "render", "-o", imgdir, "--slide", "2")
     assert r.returncode == 0, r.stdout + r.stderr
     assert (imgdir / "slide-2.jpg").exists()
+
+
+def test_set_props_roundtrip_and_validation(deck, tmp_path):
+    out = tmp_path / "props.pptx"
+    r = apply_patch(deck, [
+        {"op": "set-props", "title": "Q3 Review", "author": "Acme Strategy", "keywords": "ai, decks"},
+    ], out)
+    assert r.returncode == 0, r.stdout + r.stderr
+    data = inspect(out)
+    assert data["props"]["title"] == "Q3 Review"
+    assert data["props"]["author"] == "Acme Strategy"
+    # unknown keys and empty op are validation errors
+    r = apply_patch(deck, [{"op": "set-props", "ttile": "typo"}], tmp_path / "no.pptx")
+    assert r.returncode != 0 and "unknown key" in r.stdout
+
+
+def test_set_slide_hidden_and_solid_background(deck, tmp_path):
+    out = tmp_path / "slideprops.pptx"
+    r = apply_patch(deck, [
+        {"op": "set-slide", "slide": 2, "hidden": True},
+        {"op": "set-slide", "slide": 0, "background": "0F5258"},
+    ], out)
+    assert r.returncode == 0, r.stdout + r.stderr
+    data = inspect(out)
+    assert data["hidden_slides"] == [2]
+    xml_file = tmp_path / "s0.xml"
+    run(out, "xml", "get", "--slide", "0", "-o", xml_file)
+    xml = xml_file.read_text()
+    assert "<p:bg>" in xml and "0F5258" in xml
+    # unhide restores
+    out2 = tmp_path / "unhidden.pptx"
+    r = apply_patch(out, [{"op": "set-slide", "slide": 2, "hidden": False}], out2)
+    assert r.returncode == 0
+    assert "hidden_slides" not in inspect(out2)
+
+
+def test_set_slide_image_background(deck, tmp_path, img):
+    out = tmp_path / "bgimg.pptx"
+    r = apply_patch(deck, [{"op": "set-slide", "slide": 1, "background": {"image": str(img)}}], out)
+    assert r.returncode == 0, r.stdout + r.stderr
+    xml_file = tmp_path / "s1.xml"
+    run(out, "xml", "get", "--slide", "1", "-o", xml_file)
+    xml = xml_file.read_text()
+    assert "blipFill" in xml.split("spTree")[0]  # bg blipFill sits before the shape tree
+    # file still opens and renders structure intact
+    assert inspect(out)["slide_count"] == 3
+
+
+def test_set_theme_colors_and_fonts(deck, tmp_path):
+    import zipfile as zf
+
+    out = tmp_path / "themed.pptx"
+    r = apply_patch(deck, [
+        {"op": "set-theme", "colors": {"accent1": "BB7B19", "dk1": "0F5258"},
+         "fonts": {"major": "Georgia", "minor": "Verdana"}},
+    ], out)
+    assert r.returncode == 0, r.stdout + r.stderr
+    theme = zf.ZipFile(out).read("ppt/theme/theme1.xml").decode()
+    assert 'val="BB7B19"' in theme and 'val="0F5258"' in theme
+    assert 'typeface="Georgia"' in theme and 'typeface="Verdana"' in theme
+    # bad slot name is a validation error that lists the real slots
+    r = apply_patch(deck, [{"op": "set-theme", "colors": {"accent9": "112233"}}], tmp_path / "no.pptx")
+    assert r.returncode != 0 and "accent6" in r.stdout
+
+
+def test_alt_text_set_and_inspect(deck, tmp_path):
+    data = inspect(deck, "--slide", "1")
+    pic = find_sid(data, 1, type="PICTURE")
+    out = tmp_path / "alt.pptx"
+    r = apply_patch(deck, [
+        {"op": "set-style", "slide": 1, "shape": pic, "alt_text": "bar chart of Q3 revenue"},
+    ], out)
+    assert r.returncode == 0, r.stdout + r.stderr
+    assert inspect(out, "--slide", "1")["slides"]["1"][pic]["alt_text"] == "bar chart of Q3 revenue"
+
+
+def test_run_link_roundtrip(deck, tmp_path):
+    data = inspect(deck, "--slide", "0")
+    sid = find_sid(data, 0, paragraphs="Hello World")
+    out = tmp_path / "linked.pptx"
+    r = apply_patch(deck, [
+        {"op": "set-text", "slide": 0, "shape": sid, "text": [
+            {"runs": [{"text": "see "}, {"text": "the docs", "link": "https://example.com/docs"}]},
+        ]},
+    ], out)
+    assert r.returncode == 0, r.stdout + r.stderr
+    blob = json.dumps(inspect(out, "--slide", "0"))
+    assert "https://example.com/docs" in blob
+
+
+def test_notes_appear_in_inspect(deck, tmp_path):
+    out = tmp_path / "noted.pptx"
+    r = apply_patch(deck, [{"op": "set-notes", "slide": 0, "notes": "open with the Q3 number"}], out)
+    assert r.returncode == 0
+    assert inspect(out, "--slide", "0")["slides"]["0"]["_notes"] == "open with the Q3 number"

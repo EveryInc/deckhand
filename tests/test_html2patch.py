@@ -296,3 +296,22 @@ def test_zero_insets_no_false_overflow():
     usable_w, usable_h = Probe()._get_usable_dimensions(Frame())
     assert usable_h == pytest.approx(0.5 * 96)  # full height, no phantom margins
     assert usable_w == pytest.approx(2.0 * 96)
+
+
+def test_anchor_becomes_hyperlink_run(tmp_path):
+    html = (
+        "<html><head><style>" + BODY % ""
+        + "p { position:absolute; left:96px; top:96px; width:600px; font:20px Arial; }"
+        "a { color:#BB7B19; }"
+        "</style></head><body>"
+        "<p>read <a href='https://example.com/docs'>the docs</a> first</p>"
+        "</body></html>"
+    )
+    patch, deck_path, patch_path = compile_html(tmp_path, html)
+    op = [o for o in patch["ops"] if o.get("kind") == "textbox"][0]
+    runs = op["text"][0]["runs"]
+    linked = [r for r in runs if r.get("link")]
+    assert len(linked) == 1
+    assert linked[0]["text"] == "the docs" and linked[0]["link"] == "https://example.com/docs"
+    r = deck(deck_path, "apply", patch_path, "-o", tmp_path / "out.pptx")
+    assert r.returncode == 0, r.stdout + r.stderr

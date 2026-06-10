@@ -62,10 +62,10 @@ shapes on slide 0:
 
 | | |
 |---|---|
-| **Read** | `inspect` — shape ids, geometry (inches), text + formatting + per-run breakdowns, image rIds + media names, table contents, fills/gradients/borders, rotation, detected issues; `--master` for masters/layouts |
-| **Edit** | `set-text` (formatting-inheriting), `replace-text` (deck/master/slide scope), `replace-color` (the re-theme primitive — one op per palette mapping), `swap-image` (per-slide or deck-wide via media bytes), `set-style` (fonts, solid/gradient fills, borders, rotation), `move`, `resize`, `delete`, `set-notes` |
+| **Read** | `inspect` — shape ids, geometry (inches), text + formatting + per-run breakdowns (links included), image rIds + media names, table contents, fills/gradients/borders, rotation, alt text, speaker notes, document properties, hidden slides, detected issues; `--master` for masters/layouts |
+| **Edit** | `set-text` (formatting-inheriting, per-run hyperlinks), `replace-text` (deck/master/slide scope), `replace-color` (the re-theme primitive — one op per palette mapping), `set-theme` (scheme colors + major/minor fonts — how template decks rebrand), `swap-image` (per-slide or deck-wide via media bytes), `set-style` (fonts, solid/gradient fills, borders, rotation, alt text), `set-slide` (hide/unhide, slide background: solid/gradient/image), `set-props` (document metadata), `move`, `resize`, `delete`, `set-notes` |
 | **Create** | `add-slide` (by layout), `add-shape` (textbox, autoshapes, any MSO_SHAPE name, lines), `add-picture` (aspect-preserving), `add-table` (style-neutralized), `duplicate`, `copy-shape` (across slides, relationships re-homed) |
-| **Create from HTML** | `html2patch.py` — write a slide as HTML/CSS, get a deck.py patch back: measured boxes, formatted runs, gradients, rounded corners, bullets, tables, images, rotation |
+| **Create from HTML** | `html2patch.py` — write a slide as HTML/CSS, get a deck.py patch back: measured boxes, formatted runs, hyperlinks, gradients, rounded corners, bullets, tables, images, rotation |
 | **Structure** | `reorder` (z-order), `add-row`/`delete-row`/`add-col`/`delete-col` (formatting-inheriting, width-rescaling, merged-cell guard), `slides` (reorder/duplicate/delete), `merge` (pull slides from another deck) |
 | **Verify** | `render` (JPGs, crop + zoom), `diff` (structural changelog), post-apply lint, `fix` (deterministic repair) |
 | **Escape hatch** | `xml get`/`xml set` — pretty-printed part XML, parse-checked and lint-checked on write-back |

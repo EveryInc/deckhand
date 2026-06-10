@@ -343,6 +343,11 @@ def _run_dict(run):
                 d["theme_color"] = f.color.theme_color.name
         except (AttributeError, TypeError, ValueError):
             pass
+    try:
+        if run.hyperlink.address:
+            d["link"] = run.hyperlink.address
+    except (AttributeError, KeyError):
+        pass
     return d
 
 
@@ -357,6 +362,10 @@ def _para_dict_with_runs(p):
         fmts = [{k: v for k, v in rd.items() if k != "text"} for rd in rdicts]
         if any(f != fmts[0] for f in fmts[1:]):
             d["runs"] = rdicts
+    elif runs:
+        link = _run_dict(runs[0]).get("link")
+        if link:
+            d["link"] = link
     return d
 
 
@@ -537,6 +546,9 @@ def cmd_inspect(args):
                 ]
             if r.type != "GROUP":
                 entry.update(_shape_colors(r.shape))
+            alt = _get_alt_text(r.shape)
+            if alt:
+                entry["alt_text"] = alt
             try:
                 if r.shape.rotation:
                     entry["rotation"] = round(r.shape.rotation, 1)
@@ -549,12 +561,21 @@ def cmd_inspect(args):
             fonts = _slide_fonts(prs.slides[slide_idx])
             if fonts:
                 slide_out["_fonts"] = fonts
+            s = prs.slides[slide_idx]
+            if s.has_notes_slide:
+                notes = s.notes_slide.notes_text_frame.text.strip()
+                if notes:
+                    slide_out["_notes"] = notes
         if slide_out or not args.issues:
             if not args.issues or slide_out:
                 out["slides"][str(slide_idx)] = slide_out
     hidden = [i for i, s in enumerate(prs.slides) if s.element.get("show") == "0"]
     if hidden:
         out["hidden_slides"] = hidden
+    cp = prs.core_properties
+    props = {k: getattr(cp, k) for k in PROPS_KEYS if getattr(cp, k, None)}
+    if props:
+        out["props"] = props
     if getattr(args, "master", False):
         masters = {}
         for mi, master in enumerate(prs.slide_masters):
@@ -575,7 +596,8 @@ def cmd_inspect(args):
 # ---------------------------------------------------------------------------
 
 VALID_OPS = (
-    "set-text swap-image replace-text set-notes move resize set-style "
+    "set-text swap-image replace-text replace-color set-notes set-props "
+    "set-slide set-theme move resize set-style "
     "delete duplicate copy-shape "
     "add-shape add-picture add-table add-slide reorder "
     "add-row delete-row add-col delete-col"
@@ -640,7 +662,7 @@ def parse_slide_list(s):
 
 
 # font keys that may be overridden per RUN (everything else is paragraph-level)
-RUN_FONT_KEYS = ("bold", "italic", "underline", "font_size", "font_name", "color", "theme_color")
+RUN_FONT_KEYS = ("bold", "italic", "underline", "font_size", "font_name", "color", "theme_color", "link")
 
 
 def _merge_font(base, override):
@@ -962,6 +984,139 @@ def op_set_notes(ctx, op):
     ctx.log.append("set-notes slide %d (%d chars)" % (op["slide"], len(op["notes"])))
 
 
+PROPS_KEYS = ("title", "subject", "author", "keywords", "comments", "category", "last_modified_by")
+
+
+def op_set_props(ctx, op):
+    """Document metadata (the File > Info panel). Strings only; set "" to clear."""
+    cp = ctx.prs.core_properties
+    changed = []
+    for k in PROPS_KEYS:
+        if k in op:
+            setattr(cp, k, str(op[k]))
+            changed.append(k)
+    ctx.log.append("set-props %s" % ", ".join(changed))
+
+
+def op_set_slide(ctx, op):
+    """Slide-level properties: hidden, background."""
+    slide = ctx.prs.slides[op["slide"]]
+    done = []
+    if "hidden" in op:
+        if op["hidden"]:
+            slide._element.set("show", "0")
+        else:
+            slide._element.attrib.pop("show", None)
+        done.append("hidden=%s" % bool(op["hidden"]))
+    if "background" in op:
+        bg = op["background"]
+        # clear any existing explicit background first
+        csld = slide._element.find(qn("p:cSld"))
+        old = csld.find(qn("p:bg"))
+        if old is not None:
+            csld.remove(old)
+        if isinstance(bg, str):
+            fill = slide.background.fill
+            fill.solid()
+            h = _hex(bg, "background")
+            fill.fore_color.rgb = RGBColor(int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
+            done.append("background=%s" % h)
+        elif isinstance(bg, dict) and "gradient" in bg:
+            g = bg["gradient"]
+            fill = slide.background.fill
+            fill.gradient()
+            stops = list(fill.gradient_stops)
+            for stop, hexs in zip(stops, g["colors"]):
+                h = _hex(hexs, "gradient color")
+                stop.color.rgb = RGBColor(int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
+            if "angle" in g:
+                fill.gradient_angle = float(g["angle"])
+            done.append("background=gradient")
+        elif isinstance(bg, dict) and "image" in bg:
+            path = Path(bg["image"])
+            if not path.exists():
+                raise PatchError("background image not found: %s" % path)
+            image_part, rid = slide.part.get_or_add_image_part(str(path))
+            a = "http://schemas.openxmlformats.org/drawingml/2006/main"
+            bg_el = csld.makeelement(qn("p:bg"), {})
+            bgpr = bg_el.makeelement(qn("p:bgPr"), {})
+            blipfill = bgpr.makeelement("{%s}blipFill" % a, {"rotWithShape": "1"})
+            blip = blipfill.makeelement("{%s}blip" % a, {})
+            blip.set(qn("r:embed"), rid)
+            stretch = blipfill.makeelement("{%s}stretch" % a, {})
+            stretch.append(stretch.makeelement("{%s}fillRect" % a, {}))
+            blipfill.append(blip)
+            blipfill.append(stretch)
+            bgpr.append(blipfill)
+            bgpr.append(bgpr.makeelement("{%s}effectLst" % a, {}))
+            bg_el.append(bgpr)
+            csld.insert(0, bg_el)  # p:bg must be cSld's first child
+            done.append("background=image %s" % path.name)
+        else:
+            raise PatchError(
+                'set-slide "background" takes "RRGGBB", {"gradient": {"colors": [..], "angle": deg}}, '
+                'or {"image": "/abs/path.png"}'
+            )
+    if not done:
+        raise PatchError('set-slide: give "hidden" and/or "background"')
+    ctx.touched.add(op["slide"])
+    ctx.log.append("set-slide %d: %s" % (op["slide"], ", ".join(done)))
+
+
+THEME_COLOR_KEYS = ("dk1", "lt1", "dk2", "lt2", "accent1", "accent2", "accent3",
+                    "accent4", "accent5", "accent6", "hlink", "folHlink")
+A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
+
+
+def op_set_theme(ctx, op):
+    """Remap theme scheme colors and/or major/minor fonts. This is where
+    template-driven decks keep their palette — replace-color handles literal
+    colors; this handles the theme-indexed ones."""
+    from pptx.opc.constants import RELATIONSHIP_TYPE as RT
+    from lxml import etree
+
+    masters = list(ctx.prs.slide_masters)
+    if "master" in op:
+        masters = [masters[op["master"]]]
+    colors = op.get("colors", {})
+    fonts = op.get("fonts", {})
+    if not colors and not fonts:
+        raise PatchError('set-theme: give "colors" and/or "fonts"')
+    done = []
+    for mi, master in enumerate(masters):
+        tp = master.part.part_related_by(RT.THEME)
+        editable = hasattr(tp, "_element")
+        root = tp._element if editable else etree.fromstring(tp.blob)
+        nsmap = {"a": A_NS}
+        for key, hexv in colors.items():
+            el = root.find("a:themeElements/a:clrScheme/a:%s" % key, nsmap)
+            if el is None:
+                raise PatchError("theme color slot '%s' not found in master %d's theme" % (key, mi))
+            h = _hex(hexv, "theme color %s" % key)
+            for ch in list(el):
+                el.remove(ch)
+            s = etree.SubElement(el, "{%s}srgbClr" % A_NS)
+            s.set("val", h)
+        for role, name in fonts.items():
+            tag = {"major": "a:majorFont", "minor": "a:minorFont"}.get(role)
+            if tag is None:
+                raise PatchError('set-theme fonts keys are "major" and "minor", got \'%s\'' % role)
+            latin = root.find("a:themeElements/a:fontScheme/%s/a:latin" % tag, nsmap)
+            if latin is None:
+                raise PatchError("theme %s font slot not found in master %d's theme" % (role, mi))
+            latin.set("typeface", str(name))
+        if not editable:
+            tp._blob = etree.tostring(root, xml_declaration=True, encoding="UTF-8", standalone=True)
+        done.append("master %d" % mi)
+    ctx.log.append(
+        "set-theme %s: %s%s" % (
+            ", ".join(done),
+            ("colors " + ", ".join("%s->%s" % (k, v) for k, v in colors.items())) if colors else "",
+            ((" " if colors else "") + "fonts " + ", ".join("%s=%s" % (k, v) for k, v in fonts.items())) if fonts else "",
+        )
+    )
+
+
 def op_move(ctx, op):
     rec = ctx.rec(op["slide"], op["shape"])
     sh = rec.shape
@@ -1107,7 +1262,26 @@ def _apply_style_keys(rec, op):
             styled += 1
         except Exception as e:
             raise PatchError("cannot set shadow on %s (%s): %s" % (rec.sid, rec.type, e))
+    if "alt_text" in op:
+        _set_alt_text(rec.shape, op["alt_text"])
+        styled += 1
     return styled
+
+
+def _set_alt_text(shape, text):
+    # the shape's own cNvPr is its first descendant cNvPr in document order
+    cnvpr = shape._element.find(".//" + qn("p:cNvPr"))
+    if cnvpr is None:
+        raise PatchError("shape has no cNvPr element (cannot set alt_text)")
+    if text:
+        cnvpr.set("descr", str(text))
+    else:
+        cnvpr.attrib.pop("descr", None)
+
+
+def _get_alt_text(shape):
+    cnvpr = shape._element.find(".//" + qn("p:cNvPr"))
+    return cnvpr.get("descr") if cnvpr is not None else None
 
 
 def op_set_style(ctx, op):
@@ -1291,6 +1465,8 @@ def op_add_picture(ctx, op):
         sh.crop_left, sh.crop_top, sh.crop_right, sh.crop_bottom = [float(v) for v in c]
     if "shadow" in op:
         sh.shadow.inherit = bool(op["shadow"])
+    if "alt_text" in op:
+        _set_alt_text(sh, op["alt_text"])
     ctx.reindex_slide(slide_idx)
     ctx.log.append(
         "add-picture slide %d %s -> s%d (%.2fx%.2fin)"
@@ -1539,6 +1715,9 @@ OP_HANDLERS = {
     "replace-text": op_replace_text,
     "replace-color": op_replace_color,
     "set-notes": op_set_notes,
+    "set-props": op_set_props,
+    "set-slide": op_set_slide,
+    "set-theme": op_set_theme,
     "move": op_move,
     "resize": op_resize,
     "set-style": op_set_style,
@@ -1651,6 +1830,30 @@ def validate_ops(ctx, ops):
                         errors.append("%s: %s" % (tag, e))
         if kind == "set-notes" and "notes" not in op:
             errors.append("%s: needs 'notes'" % tag)
+        if kind == "set-props":
+            given = [k for k in op if k != "op"]
+            bad = sorted(k for k in given if k not in PROPS_KEYS)
+            if bad:
+                errors.append("%s: unknown key(s) %s — valid: %s" % (tag, ", ".join(bad), ", ".join(PROPS_KEYS)))
+            if not [k for k in given if k in PROPS_KEYS]:
+                errors.append("%s: give at least one of %s" % (tag, ", ".join(PROPS_KEYS)))
+        if kind == "set-slide":
+            if "slide" not in op:
+                errors.append("%s: needs 'slide'" % tag)
+            if not ("hidden" in op or "background" in op):
+                errors.append("%s: give \"hidden\" and/or \"background\"" % tag)
+        if kind == "set-theme":
+            if not (isinstance(op.get("colors"), dict) or isinstance(op.get("fonts"), dict)):
+                errors.append("%s: give \"colors\" (dict) and/or \"fonts\" (dict)" % tag)
+            n_masters = len(ctx.prs.slide_masters._sldMasterIdLst) if hasattr(ctx.prs.slide_masters, "_sldMasterIdLst") else len(list(ctx.prs.slide_masters))
+            if "master" in op and not (0 <= op["master"] < n_masters):
+                errors.append("%s: master %s out of range (0-%d)" % (tag, op["master"], n_masters - 1))
+            for key in (op.get("colors") or {}):
+                if key not in THEME_COLOR_KEYS:
+                    errors.append("%s: unknown color slot '%s' — slots: %s" % (tag, key, ", ".join(THEME_COLOR_KEYS)))
+            for key in (op.get("fonts") or {}):
+                if key not in ("major", "minor"):
+                    errors.append("%s: fonts keys are \"major\"/\"minor\", got '%s'" % (tag, key))
         if kind == "set-text":
             if "text" not in op:
                 errors.append("%s: needs 'text'" % tag)
@@ -2309,8 +2512,10 @@ set-text       {"op":"set-text","slide":3,"shape":"s12","text":["Line one","Line
                {"text":" fewer tokens"}]}
     Every run inherits the OLD paragraph's first-run font, then its own keys
     override (per-run keys: bold, italic, underline, font_size, font_name,
-    color, theme_color). Paragraph keys (alignment, bullet, level, spacing)
-    still go on the paragraph object, next to "runs".
+    color, theme_color, link). "link":"https://…" makes the run a hyperlink
+    (null/"" removes one); works on plain paragraph objects too. Paragraph
+    keys (alignment, bullet, level, spacing) still go on the paragraph
+    object, next to "runs".
     A plain "text" paragraph still collapses mixed old runs to the first
     run's format — use "runs" when you need to PRESERVE a mid-paragraph style
     (inspect shows the current runs breakdown when formats differ).
@@ -2348,6 +2553,25 @@ replace-color  {"op":"replace-color","scope":"deck","from":"E8A33D","to":"F8DE6E
   - Colors inside IMAGES don't change (pixels aren't XML) — re-render and
     look; swap-image any asset that carries the old palette.
 
+set-props      {"op":"set-props","title":"Q3 Review","author":"Acme"}
+  - Document metadata (File > Info): title, subject, author, keywords,
+    comments, category, last_modified_by. Strings; "" clears a field.
+    Current values appear in `inspect` (no --slide) under "props".
+
+set-slide      {"op":"set-slide","slide":3,"hidden":true,"background":"0F5258"}
+  - Slide-level properties. "hidden": true/false (hidden slides don't
+    present/render unless explicitly listed). "background" paints the
+    slide's own p:bg layer (under every shape): "RRGGBB",
+    {"gradient":{"colors":["A","B"],"angle":90}}, or {"image":"/abs/p.png"}.
+
+set-theme      {"op":"set-theme","colors":{"accent1":"BB7B19"},"fonts":{"major":"Georgia"}}
+  - Remaps the THEME: color slots dk1 lt1 dk2 lt2 accent1-6 hlink folHlink,
+    and major (headings) / minor (body) latin fonts. Every shape that uses
+    theme-indexed colors/fonts follows automatically — this is how
+    template decks are rebranded. "master":N targets one master (default
+    all). Literal hard-coded colors don't follow — that's replace-color;
+    a full rebrand is usually set-theme + a few replace-color ops.
+
 set-notes      {"op":"set-notes","slide":3,"notes":"plain text speaker notes"}
 move           {"op":"move","slide":3,"shape":"s12","to":[1.0,2.5]}     or "by":[dx,dy]
 resize         {"op":"resize","slide":3,"shape":"s12","size":[4.0,1.5]} or "scale":0.8
@@ -2372,6 +2596,8 @@ set-style      {"op":"set-style","slide":3,"shape":"s12",...}
     radius as a fraction of the smaller dimension, max 0.5).
   - "shadow":false = remove the theme's inherited drop shadow (new autoshapes
     often carry one); true restores inheritance.
+  - "alt_text":"describe the image" = accessibility description (any shape;
+    "" removes). inspect shows it.
 delete         {"op":"delete","slide":3,"shape":"s12"}   (deleting a GROUP deletes its children)
 duplicate      {"op":"duplicate","slide":3,"shape":"s12","offset":[0,1.2],"text":["New label"]}
   - THE way to scale a styled element ("three boxes → four"). The copy keeps
@@ -2442,9 +2668,11 @@ FIX (deterministic repair — run after every apply)
 INSPECT FIELDS
   pos/size [in], type, group (parent group id), placeholder,
   paragraphs (text + non-default formatting — what set-text will inherit;
-    a "runs" breakdown appears when a paragraph mixes run formats),
+    a "runs" breakdown appears when a paragraph mixes run formats;
+    "link" appears on hyperlinked runs),
   rid + media (pictures), rows (tables), fill / fill_gradient / line (when set),
-  "_fonts" per slide (every typeface used), issues:
+  alt_text (when set), "_fonts" + "_notes" per slide,
+  deck-level: "props" (document metadata), "hidden_slides", issues:
     frame_overflow_bottom  text taller than its box (inches over)
     slide_overflow_right/bottom  shape sticks off the slide
     overlaps  {other_sid: sq inches}  (text-vs-text only)

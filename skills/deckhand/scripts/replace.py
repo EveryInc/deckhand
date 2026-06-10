@@ -127,6 +127,10 @@ def apply_font_properties(run, para_data: Dict[str, Any]):
     if "font_name" in para_data:
         run.font.name = para_data["font_name"]
 
+    if "link" in para_data:
+        # a URL string sets the hyperlink; null/"" removes it
+        run.hyperlink.address = para_data["link"] or None
+
     # Apply color - prefer RGB, fall back to theme_color
     if "color" in para_data:
         color_hex = para_data["color"].lstrip("#")

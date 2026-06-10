@@ -41,6 +41,9 @@ python scripts/deck.py deck.pptx diff out.pptx               # structural change
   {"op":"swap-image",  "media":"image13.png",    "image":"/abs/logo.png"},
   {"op":"replace-text","scope":"deck", "from":"Old Name", "to":"New Name"},
   {"op":"replace-color","scope":"deck", "from":"E8A33D", "to":"F8DE6E"},
+  {"op":"set-theme",   "colors":{"accent1":"BB7B19"}, "fonts":{"major":"Georgia"}},
+  {"op":"set-props",   "title":"Q3 Review", "author":"Acme"},
+  {"op":"set-slide",   "slide":3, "hidden":true, "background":"0F5258"},
   {"op":"set-notes",   "slide":3, "notes":"speaker notes"},
   {"op":"move",        "slide":3, "shape":"s12", "to":[1.0,2.5]},
   {"op":"resize",      "slide":3, "shape":"s12", "size":[4.0,1.5]},
@@ -88,7 +91,8 @@ python scripts/deck.py deck.pptx apply patch.json -o out.pptx --render img/
   `<img>` becomes a picture (local files only; `object-fit: cover` becomes a
   real crop); `<table>` becomes a real table with per-cell fills and measured
   column widths.
-- Inline `<b>`/`<i>`/`<u>`/`<span style>` become formatted runs. CSS padding
+- Inline `<b>`/`<i>`/`<u>`/`<span style>` become formatted runs; `<a href>`
+  becomes a real hyperlink. CSS padding
   maps to text insets; `text-transform`, `transform:rotate`, and vertical
   `writing-mode` are honored. Use installed fonts (Arial, Georgia, …).
 - By default each HTML file appends a new slide (`add-slide`, `--layout` picks
