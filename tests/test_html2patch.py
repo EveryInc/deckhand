@@ -222,6 +222,25 @@ def test_table_neutralized_and_styled(tmp_path):
     assert r.returncode == 0, r.stdout + r.stderr
 
 
+def test_table_cell_br_keeps_words_apart(tmp_path):
+    # textContent flattens <br> to nothing ("Who decideswhat runs next");
+    # explicit breaks must survive as newlines
+    html = (
+        "<html><head><style>" + BODY % ""
+        + "table { position:absolute; left:96px; top:96px; width:600px;"
+        "  border-collapse:collapse; font:14px Arial; color:#333333; }"
+        "td { height: 40px; }"
+        "</style></head><body><table>"
+        "<tr><td>Who decides<br>what runs next</td><td>The script</td></tr>"
+        "</table></body></html>"
+    )
+    patch, deck_path, patch_path = compile_html(tmp_path, html)
+    tbl = [o for o in patch["ops"] if o["op"] == "add-table"][0]
+    assert tbl["rows"][0][0] == "Who decides\nwhat runs next"
+    r = deck(deck_path, "apply", patch_path, "-o", tmp_path / "out.pptx")
+    assert r.returncode == 0, r.stdout + r.stderr
+
+
 def test_overflow_is_an_error(tmp_path):
     html = (
         "<html><head><style>" + BODY % ""

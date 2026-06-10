@@ -295,8 +295,21 @@ EXTRACT_JS = r"""
           if (cell.colSpan > 1 || cell.rowSpan > 1)
             out.warnings.push('table cell spans are not supported; layout will be off');
           const cellCs = cs(cell);
-          row.push(transformText(cell.textContent.replace(/\s+/g, ' ').trim(),
-                                 cellCs.textTransform));
+          // textContent flattens <br> to nothing, gluing words together —
+          // walk the cell so explicit breaks survive as newlines
+          const withBreaks = (function walk(node) {
+            let s = '';
+            node.childNodes.forEach(n => {
+              if (n.nodeType === Node.TEXT_NODE) s += n.textContent;
+              else if (n.nodeType === Node.ELEMENT_NODE)
+                s += n.tagName === 'BR' ? '\n' : walk(n);
+            });
+            return s;
+          })(cell);
+          row.push(transformText(
+            withBreaks.split('\n').map(l => l.replace(/\s+/g, ' ').trim())
+                      .filter(Boolean).join('\n'),
+            cellCs.textTransform));
           const st = runStyle(cellCs);
           const bg = parseColor(cellCs.backgroundColor);
           rowSt.push({ ...st, fill: bg ? bg.hex : null,

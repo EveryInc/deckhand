@@ -12,7 +12,7 @@
       "name": "deckhand",
       "source": "./",
       "description": "Agent-native PowerPoint manipulation. One CLI (deck.py) lets agents inspect, edit, create, and verify .pptx files through atomic JSON patches — with self-correcting errors, deterministic geometry repair, and built-in visual verification.",
-      "version": "2.2.0"
+      "version": "2.2.1"
     }
   ]
 }
