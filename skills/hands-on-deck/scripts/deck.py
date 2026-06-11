@@ -981,9 +981,31 @@ def op_replace_color(ctx, op):
     )
 
 
+def _ensure_notes_master_listed(prs):
+    # python-pptx creates the notesMaster part + relationship on first
+    # notes_slide access but never declares it in presentation.xml.
+    # PowerPoint/LibreOffice tolerate the omission; Keynote rejects the
+    # whole file ("file format is invalid"). ECMA-376 puts
+    # p:notesMasterIdLst right after p:sldMasterIdLst.
+    pres_el = prs.part._element
+    if pres_el.find(qn("p:notesMasterIdLst")) is not None:
+        return
+    rid = next(
+        (r_id for r_id, rel in prs.part.rels.items() if "notesMaster" in rel.reltype),
+        None,
+    )
+    if rid is None:
+        return
+    lst = pres_el.makeelement(qn("p:notesMasterIdLst"), {})
+    mid = lst.makeelement(qn("p:notesMasterId"), {qn("r:id"): rid})
+    lst.append(mid)
+    pres_el.find(qn("p:sldMasterIdLst")).addnext(lst)
+
+
 def op_set_notes(ctx, op):
     slide = ctx.prs.slides[op["slide"]]
     slide.notes_slide.notes_text_frame.text = op["notes"]
+    _ensure_notes_master_listed(ctx.prs)
     ctx.log.append("set-notes slide %d (%d chars)" % (op["slide"], len(op["notes"])))
 
 

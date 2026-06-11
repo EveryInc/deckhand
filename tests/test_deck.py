@@ -4,6 +4,7 @@ No binary fixtures: every test builds its deck with python-pptx, then talks to
 deck.py only through its command line and JSON patches.
 """
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -543,3 +544,26 @@ def test_notes_appear_in_inspect(deck, tmp_path):
     r = apply_patch(deck, [{"op": "set-notes", "slide": 0, "notes": "open with the Q3 number"}], out)
     assert r.returncode == 0
     assert inspect(out, "--slide", "0")["slides"]["0"]["_notes"] == "open with the Q3 number"
+
+
+def test_set_notes_registers_notes_master(deck, tmp_path):
+    # python-pptx creates the notesMaster part on first notes_slide access but
+    # never adds p:notesMasterIdLst to presentation.xml. PowerPoint tolerates
+    # the omission; Keynote rejects the entire file as "format is invalid".
+    out = tmp_path / "noted.pptx"
+    r = apply_patch(deck, [{"op": "set-notes", "slide": 0, "notes": "hello"}], out)
+    assert r.returncode == 0
+    with zipfile.ZipFile(out) as z:
+        pres = z.read("ppt/presentation.xml").decode()
+        rels = z.read("ppt/_rels/presentation.xml.rels").decode()
+    assert "notesMasterIdLst" in pres
+    m = re.search(r'<p:notesMasterId r:embed="(rId\d+)"|<p:notesMasterId r:id="(rId\d+)"', pres)
+    assert m, "notesMasterId missing an r:id"
+    rid = m.group(1) or m.group(2)
+    assert rid in rels and "notesMaster" in rels
+    # idempotent: a second set-notes must not add a duplicate list
+    out2 = tmp_path / "noted2.pptx"
+    r = apply_patch(out, [{"op": "set-notes", "slide": 1, "notes": "again"}], out2)
+    assert r.returncode == 0
+    with zipfile.ZipFile(out2) as z:
+        assert z.read("ppt/presentation.xml").decode().count("notesMasterIdLst") == 2  # open+close tag
