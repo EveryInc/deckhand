@@ -138,7 +138,7 @@ The benchmark is a committed, repeatable eval suite, not a one-off: [`evals/`](e
 
 ## Who built this
 
-hands-on-deck is open-sourced from real work by [Every Consulting](https://every.to/consulting). We built it to make our own decks — every training we run ships with a branded deck, and our agents build them with hands-on-deck. The hard parts were learned on client work: with one client whose team spent hours of a person's day on every deck — hundreds of human hours across the team — we ran an earlier version of this pipeline, and every way it failed became a design decision in this CLI. The failure modes it guards against aren't theory; they're field notes.
+hands-on-deck is open-sourced from real work by [Every Consulting](https://every.to/consulting). We built it to make our own decks — every training we run ships with a branded deck, and our agents build them with hands-on-deck. The tool distills the lessons from building **hundreds of decks with Claude**: every way an agent fumbled a deck along the way became a design decision in this CLI. The failure modes it guards against aren't theory; they're field notes.
 
 If you want your team's work automated like this — decks or anything else — [that's literally what we do](https://every.to/consulting).
 
