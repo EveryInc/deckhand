@@ -118,6 +118,20 @@ framing; final slide count). `{{PALETTE_LINE}}` for the auditor:
 > backgrounds #0F5258 / #4999A0; text #FFFEFB / #FFFFFF; secondary text #C3DCDE
 > (floor — nothing dimmer allowed); accents #BB7B19, #F8DE6E, #2E8D23
 
+**For `tasks/edit-two-world-reskin.md`** use `judges/edit-auditor-two-world.md`
+instead of the generic auditor (it needs `file-A.pptx`/`file-B.pptx` copied into
+the judging dir, assignment-matched). `{{EDIT_BRIEF_SUMMARY}}` compresses the task's
+four parts: the slide-by-slide world map with both palettes and floors, the
+keep-dark card rule + two-tone thread continuity, the three content edits on slides
+14–17, speaker notes on all 18. Phase 0 note: the input deck is committed at
+`evals/assets/two-world-reskin-input.pptx` — copy it to each arm's
+`{{WORKDIR}}/deck.pptx`; this task is same-deck by construction. Add this line to
+EVERY judge prompt for this task (the deck's content describes one of the
+toolchains; both arms received identical content):
+
+> The deck's subject matter is irrelevant and identical across both teams. Judge
+> ONLY the quality of the edits — never the deck's claims or copy.
+
 ## Phase 5 — unblind and tally
 
 Only after every judge's final verdict is in:
