@@ -145,9 +145,9 @@
 
   /* ---------- ghost numerals ---------- */
   .ghost-no {
-    position: absolute; top: -52px; left: -48px; z-index: 0;
+    position: absolute; top: -56px; right: -10px; z-index: 0;
     font-family: var(--display); font-weight: 560; font-style: normal;
-    font-size: clamp(150px, 19vw, 270px); line-height: 0.78;
+    font-size: clamp(150px, 17vw, 250px); line-height: 0.78;
     color: var(--ghost); pointer-events: none; user-select: none;
   }
   .w-paper .ghost-no { color: #EDE5D3; }
@@ -807,6 +807,7 @@
     .prin-head { position: static; }
     .cov-grid { grid-template-columns: 1fr 1fr; }
     .install-grid { grid-template-columns: 1fr; }
+    .ghost-no { display: none; }
     .gest-row, .gest-head { grid-template-columns: 1fr; gap: 4px; }
     .gest-row .g-h, .gest-head span:first-child { text-align: left; }
     .gest-row .g-a, .gest-head span:nth-child(2) { display: none; }
@@ -824,7 +825,6 @@
     .prin-body .term pre { font-size: 11px; }
     .install-line { font-size: 12.5px; padding: 12px 14px; width: 100%; }
     .foot-sig { text-align: left; }
-    .ghost-no { font-size: 120px; }
   }
 </style>
 </head>
