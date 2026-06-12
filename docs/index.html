@@ -369,7 +369,7 @@
   .slide-caption .op { color: var(--acc); font-weight: 700; }
 
   /* ---------- sections ---------- */
-  .sect-pad { padding: clamp(72px, 9vw, 128px) 0; }
+  .sect-pad { padding: clamp(56px, 7vw, 96px) 0; }
   .sect-head { position: relative; padding-top: 26px; }
 
   /* ---------- § 01 problem chips ---------- */
@@ -556,12 +556,12 @@
   .gest-kicker .hl { color: var(--acc); }
 
   /* ---------- principles ---------- */
-  .principles { margin-top: 64px; position: relative; z-index: 2; }
+  .principles { margin-top: 56px; position: relative; z-index: 2; }
   .prin {
     display: grid;
     grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
     gap: clamp(28px, 5vw, 72px);
-    padding: 52px 0;
+    padding: 38px 0;
     border-top: 1px solid var(--hair);
     align-items: start;
   }
@@ -758,7 +758,7 @@
   .inst .inst-cmd .t-dim { color: var(--card-faint); }
 
   /* ---------- close (paper) ---------- */
-  .close-pad { padding: clamp(90px, 12vw, 170px) 0 clamp(80px, 10vw, 150px); text-align: center; }
+  .close-pad { padding: clamp(72px, 9vw, 130px) 0 clamp(64px, 8vw, 110px); text-align: center; }
   .close-eyebrow {
     font-family: var(--mono); font-size: 12px; font-weight: 700;
     letter-spacing: 0.22em; text-transform: uppercase; color: var(--eyebrow);
@@ -860,7 +860,7 @@
         </div>
         <h1 class="title">hands <span class="hand">on</span><br>deck</h1>
         <p class="tagline">Agent-native PowerPoint manipulation.</p>
-        <p class="hero-sub">One CLI — <code>deck.py</code> — lets AI agents inspect, edit, create, and verify <code>.pptx</code> files with the fidelity of a human operator. Works in Claude Code, claude.ai, and anywhere an agent can run a shell command.</p>
+        <p class="hero-sub">One CLI — <code>deck.py</code> — lets AI agents inspect, edit, create, and verify <code>.pptx</code> files with the fidelity of a human operator. Works anywhere an agent can run a shell command.</p>
         <p class="hero-new"><span class="new-flag">new</span><a href="#html">write a slide as HTML, compile it into your deck — the browser measures, deck.py writes →</a></p>
         <div class="hero-actions">
           <div class="install-line">
@@ -907,13 +907,12 @@
       <div class="ghost-no" aria-hidden="true">01</div>
       <p class="eyebrow"><span class="secno">§ 01</span>The problem</p>
       <h2 class="sect">The failure mode wasn't ugliness.<br>It was <em>unreviewable tedium</em>.</h2>
-      <p class="lede">Agents could already produce decks. The trouble started when you looked closely at what came back.</p>
+      <p class="lede">Agents could already produce decks. The trouble was what came back.</p>
     </div>
     <div class="prob-grid rv">
       <div class="prob-copy">
-        <p>Hand an agent your branded template and it would <strong>ignore it and rebuild from scratch</strong> — new fonts, new colors, none of the decisions your designer already made. Titles drifted a quarter-inch from slide to slide. Footers vanished on some slides and not others.</p>
-        <p>None of it was dramatic. All of it meant <strong>a human nudging boxes, slide by slide, for an hour</strong> — exactly the work the agent was supposed to take away. Who wants to spend their afternoon fixing slide decks?</p>
-        <p>The fix isn't a better prompt. It's giving the agent <strong>the same fine-grained gestures a human operator has</strong> — and a way to check its own work before you ever see it.</p>
+        <p>Templates <strong>ignored and rebuilt from scratch</strong>. Titles drifting a quarter-inch between slides. Footers missing on some slides and not others. Nothing dramatic — just <strong>a human nudging boxes, slide by slide, for an hour</strong>. Exactly the work the agent was supposed to take away.</p>
+        <p>The fix isn't a better prompt. It's giving the agent <strong>the same gestures a human operator has</strong> — and a way to check its own work before you see it.</p>
       </div>
       <div class="chip-stack">
         <span class="chip-label">found in review — real decks</span>
@@ -938,23 +937,23 @@
       <div class="ghost-no" aria-hidden="true">02</div>
       <p class="eyebrow"><span class="secno">§ 02</span>What the agent actually sees</p>
       <h2 class="sect">A .pptx is a zip of XML.<br>There were <em>two bad ways in</em>.</h2>
-      <p class="lede">You see a slide. The agent gets a ZIP file — and one ordinary slide is about <strong>2,000 lines of OOXML</strong> (you're looking at some, behind this text). Agents that edit the XML directly are one namespace typo from a corrupt file. Agents that regenerate decks from scratch lose everything a template encodes. <strong>hands-on-deck takes a third path.</strong></p>
+      <p class="lede">You see a slide. The agent gets a ZIP file — one ordinary slide is about <strong>2,000 lines of OOXML</strong> (you're looking at some, behind this text). <strong>hands-on-deck takes a third path.</strong></p>
     </div>
     <div class="paths rv">
       <div class="path bad">
         <h3>Hand-write OOXML <span class="verdict">fragile</span></h3>
-        <p>Unzip, edit <code>slide3.xml</code> raw, rezip. Burns thousands of tokens on angle brackets, and a single bad namespace produces a file PowerPoint refuses to open.</p>
+        <p>Unzip, edit <code>slide3.xml</code> raw, rezip. Thousands of tokens on angle brackets; one bad namespace and PowerPoint refuses the file.</p>
       </div>
       <div class="path bad">
         <h3>Regenerate from scratch <span class="verdict">lossy</span></h3>
-        <p>Rebuild the deck with a generation library. Clean code — but the master, theme colors, layouts, and every designer decision the template encodes are gone.</p>
+        <p>Rebuild with a generation library — and lose the master, the theme, every designer decision the template encodes.</p>
       </div>
       <div class="path good">
         <h3>Declarative patch <span class="verdict">hands-on-deck</span></h3>
-        <p>The agent writes a JSON patch describing intent — replace this text, swap that image. The tool validates everything, then executes it atomically.</p>
+        <p>The agent writes a JSON patch describing intent. The tool validates everything, then executes atomically.</p>
       </div>
     </div>
-    <p class="zip-stat rv">five text boxes and an image ≈ <b>2,000 lines of markup</b> — the LLM compiles intent; the tool does the bytes. <b>The LLM never edits XML.</b></p>
+    <p class="zip-stat rv">the LLM compiles intent; the tool does the bytes. <b>The LLM never edits XML.</b></p>
   </div>
 </section>
 
@@ -965,7 +964,7 @@
       <div class="ghost-no" aria-hidden="true">03</div>
       <p class="eyebrow"><span class="secno">§ 03</span>The patch model</p>
       <h2 class="sect">Say <em>what</em> should change.<br>Never touch the XML.</h2>
-      <p class="lede">A patch is a list of operations against named shapes on numbered slides. One file, one apply, one atomic result.</p>
+      <p class="lede">Operations against named shapes on numbered slides. One file, one apply, one atomic result.</p>
     </div>
     <div class="patch-grid">
       <div class="term rv">
@@ -991,15 +990,15 @@
         </div>
         <div class="op-note">
           <h4>set-text</h4>
-          <p>Address a shape by its stable id. Each list item becomes a paragraph; formatting survives.</p>
+          <p>Address a shape by its stable id; formatting survives.</p>
         </div>
         <div class="op-note">
           <h4>swap-image</h4>
-          <p>New picture, same frame, same crop, same position. The layout never knows.</p>
+          <p>New picture, same frame, same crop. The layout never knows.</p>
         </div>
         <div class="op-note">
           <h4>duplicate</h4>
-          <p>Clone an existing styled shape, offset it in inches, rewrite its text. The template is the design system.</p>
+          <p>Clone a styled shape, offset in inches, rewrite its text. The template is the design system.</p>
         </div>
         <p class="patch-kicker"><b>deck.py deck.pptx apply patch.json --fix --render img/</b><br>— validated first, applied atomically, linted after.</p>
       </div>
@@ -1014,7 +1013,7 @@
       <div class="ghost-no" aria-hidden="true">04</div>
       <p class="eyebrow"><span class="secno">§ 04</span>The framing</p>
       <h2 class="sect">We built PowerPoint. <em>As a CLI.</em></h2>
-      <p class="lede">The simplest way to understand the tool: take every gesture a human makes inside PowerPoint, and give the agent the same gesture as a command.</p>
+      <p class="lede">Every gesture a human makes inside PowerPoint, as a command.</p>
     </div>
     <div class="gest rv">
       <div class="gest-head"><span>your gesture</span><span></span><span>its gesture</span></div>
@@ -1044,7 +1043,7 @@
       </div>
       <div class="gest-final">every gesture you have, it now has.</div>
     </div>
-    <p class="gest-kicker rv">Not a converter. Not a script. <span class="hl">The application itself.</span></p>
+    <p class="gest-kicker rv">Not a converter. Not a script. <span class="hl">The application itself</span>.</p>
   </div>
 </section>
 
@@ -1055,7 +1054,7 @@
       <div class="ghost-no" aria-hidden="true">05</div>
       <p class="eyebrow"><span class="secno">§ 05</span>The differentiator</p>
       <h2 class="sect">Built around how agents <em>actually fail</em></h2>
-      <p class="lede">The interesting part isn't that it's a CLI — it's that <strong>every design choice targets a known LLM failure mode</strong>.</p>
+      <p class="lede"><strong>Every design choice targets a known LLM failure mode.</strong></p>
     </div>
 
     <div class="principles">
@@ -1066,7 +1065,7 @@
           <h3>Errors <em>teach</em> instead of scold</h3>
         </div>
         <div class="prin-body">
-          <p>Agents guess shape ids. A bad reference doesn't return <code>shape not found</code> and force another round trip — it returns the slide's <strong>real shape inventory</strong>, so the agent self-corrects from the error message alone.</p>
+          <p>Agents guess shape ids. A bad reference returns the slide's <strong>real shape inventory</strong> — the agent self-corrects from the error message alone.</p>
           <div class="term">
             <div class="term-bar">
               <span class="dots"><i></i><i></i><i></i></span>
@@ -1088,7 +1087,7 @@
           <h3>All errors at once, <em>atomically</em></h3>
         </div>
         <div class="prin-body">
-          <p>A patch with nine mistakes returns <strong>nine actionable errors and writes zero bytes</strong>. Never a half-applied patch, never fix-one-rerun-find-the-next. The agent repairs everything in a single pass.</p>
+          <p>Nine mistakes → <strong>nine errors, zero bytes written</strong>. Never a half-applied patch; the agent repairs everything in one pass.</p>
         </div>
       </div>
 
@@ -1098,7 +1097,7 @@
           <h3>The linter watches the agent's <em>hands</em></h3>
         </div>
         <div class="prin-body">
-          <p>Agents can't feel when a text box overflows or two shapes collide. After every apply, the linter reports <strong>only the geometry problems the patch introduced</strong> — exact inch values, and the exact command that fixes them. No noise about pre-existing quirks.</p>
+          <p>Agents can't feel overflow or collision. After every apply, the linter reports <strong>only what the patch broke</strong> — exact inches, exact fix command, no noise about pre-existing quirks.</p>
         </div>
       </div>
 
@@ -1108,7 +1107,7 @@
           <h3>Repair is <em>honest</em></h3>
         </div>
         <div class="prin-body">
-          <p><code>fix</code> re-measures the slide after repairing it. Anything still broken is reported as <strong>residue — never claimed as fixed</strong>. The tool refuses to tell the agent what it wants to hear.</p>
+          <p><code>fix</code> re-measures after repairing. Anything still broken is reported as <strong>residue — never claimed as fixed</strong>.</p>
         </div>
       </div>
 
@@ -1118,7 +1117,7 @@
           <h3>Verification is <em>visual</em></h3>
         </div>
         <div class="prin-body">
-          <p>Slides render to JPGs; the agent can <strong>crop and zoom any region</strong> to inspect a chart label or a kerning disaster up close. It looks at its work the way a human operator would — before anyone else has to.</p>
+          <p>Render, <strong>crop, and zoom any region</strong>. The agent looks at its work the way you would — before you have to.</p>
         </div>
       </div>
 
@@ -1133,7 +1132,7 @@
       <div class="ghost-no" aria-hidden="true">06</div>
       <p class="eyebrow"><span class="secno">§ 06</span>The create path · <span class="new-flag">new</span></p>
       <h2 class="sect">Write the slide as a <em>webpage</em>.<br>Ship it as a slide.</h2>
-      <p class="lede">Templates carry the brand, but free-form layout is where decks get <em>designed</em> — and HTML/CSS is the layout language agents are most fluent in. <code>html2patch</code> renders your HTML in a headless browser, reads back every measured box and computed style, and compiles it into an ordinary deck.py patch. <strong>The browser is a measuring engine. deck.py stays the only writer.</strong></p>
+      <p class="lede">HTML/CSS is the layout language agents are most fluent in. <code>html2patch</code> renders your slide in a headless browser and compiles every measured box into an ordinary deck.py patch. <strong>The browser measures. deck.py stays the only writer.</strong></p>
     </div>
     <div class="patch-grid">
       <div class="term rv">
@@ -1153,21 +1152,21 @@
       <div class="op-notes rv">
         <div class="op-note">
           <h4>One writer</h4>
-          <p>The output is a patch, not a second file format. A compiled slide is born with the same shape ids, lint coverage, <code>fix</code> loop, and <code>diff</code> as every edit — the agent can nudge one box <em>seconds after creating it</em>, with an ordinary op.</p>
+          <p>A compiled slide is born with the same shape ids, lints, and <code>diff</code> as every edit — nudge one box seconds after creating it.</p>
         </div>
         <div class="op-note">
           <h4>Creates <em>into</em> your template</h4>
-          <p>The patch can <code>add-slide</code> with a layout from your branded master and place the HTML-measured shapes onto it. Free-form design <strong>inside your own branded deck</strong> — the thing generate-a-new-file architectures structurally cannot do.</p>
+          <p><code>add-slide</code> onto your branded master's layouts. Free-form design <strong>inside your own deck</strong> — the thing generate-a-new-file architectures can't do.</p>
         </div>
         <div class="op-note">
           <h4>Drift is caught, not hoped away</h4>
-          <p>Browsers and PowerPoint wrap text slightly differently. The post-apply linter re-measures the <em>real</em> deck and reports any overflow with the exact fix — the existing safety net covers the create path with zero new machinery.</p>
+          <p>Browsers and PowerPoint wrap text differently. The post-apply linter re-measures the <em>real</em> deck and reports any overflow with the exact fix.</p>
         </div>
         <div class="op-note">
-          <h4>Gradients, tables, crops — compiled, not approximated</h4>
-          <p>CSS gradients become native gradient fills. Tables keep per-cell fills and measured column widths. <code>object-fit: cover</code> becomes a true picture crop. <code>&lt;ol&gt;</code> numbers, rotation rotates, padding becomes text insets.</p>
+          <h4>Compiled, not approximated</h4>
+          <p>CSS gradients become native fills, tables keep per-cell fills and column widths, <code>object-fit: cover</code> becomes a true crop.</p>
         </div>
-        <p class="patch-kicker">stress-tested against the browser, pixel by pixel — and head-to-head against the best-known HTML-to-PPTX engine on <b>its own</b> constraint set: closer to the browser's render, and where that engine reported success while silently dropping an entire table, <b>hands-on-deck carried it</b>.</p>
+        <p class="patch-kicker">raced the best-known HTML→PPTX engine on <b>its own</b> constraint set: closer to the browser's render — and where it silently dropped a whole table, <b>hands-on-deck carried it</b>.</p>
       </div>
     </div>
   </div>
@@ -1185,27 +1184,27 @@
     <div class="cov-grid rv">
       <div class="cov">
         <h3>Read</h3>
-        <p>Full deck inventory — slides, shapes, geometry, text, formatting runs, speaker notes — as structured output an agent can reason over.</p>
+        <p>Slides, shapes, geometry, formatting runs, notes — structured output an agent can reason over.</p>
       </div>
       <div class="cov">
         <h3>Edit</h3>
-        <p>Text, images, formatting, position, borders, fills, hyperlinks, alt text, slide backgrounds, slide transitions, theme colors and fonts, document metadata — every mutation through the same validated patch pipeline.</p>
+        <p>Text, images, position, fills, hyperlinks, backgrounds, transitions, theme colors, metadata — one validated pipeline.</p>
       </div>
       <div class="cov">
         <h3>Create</h3>
-        <p>New slides from the template's own layouts, new shapes cloned from styled ones — or write the slide as HTML and compile it in. The brand survives by construction.</p>
+        <p>New slides from your template's layouts, shapes cloned from styled ones, or HTML compiled in.</p>
       </div>
       <div class="cov">
         <h3>Structure</h3>
-        <p>Add, delete, reorder, and duplicate slides; merge decks; add and remove table rows and columns. Work across masters and layouts, not just the surface.</p>
+        <p>Add, delete, reorder, duplicate slides; merge decks; table rows and columns; masters and layouts.</p>
       </div>
       <div class="cov">
         <h3>Verify</h3>
-        <p>Render to images, crop, zoom, lint geometry, diff before/after. Trust is earned per-edit, not assumed.</p>
+        <p>Render, crop, zoom, lint, diff. Trust is earned per edit.</p>
       </div>
       <div class="cov">
         <h3>Escape hatch</h3>
-        <p>When the patch model can't express it, drop to raw OOXML deliberately — with the tooling still validating the result.</p>
+        <p>Raw OOXML when the patch model can't express it — with the tooling still validating.</p>
       </div>
     </div>
     <p class="outscope rv"><b>Out of scope, honestly:</b> native chart objects and shape animations. hands-on-deck does the 95% that real decks are actually made of, and says so.</p>
@@ -1219,7 +1218,7 @@
       <div class="ghost-no" aria-hidden="true">08</div>
       <p class="eyebrow"><span class="secno">§ 08</span>The comparison</p>
       <h2 class="sect">Same job. <em>Different machinery.</em></h2>
-      <p class="lede">Anthropic ships a pptx skill, and parts of it are genuinely good — the design guidance reads like a designer wrote it. The difference is architectural: their guardrails are <em>advice to the model</em>. hands-on-deck's are <strong>machinery in the tool</strong> — and advice can be ignored on exactly the slide that matters. We didn't leave that as an opinion — <a href="#benchmark">we raced them, blind-judged, four rounds — § 09</a>.</p>
+      <p class="lede">Anthropic's pptx skill is genuinely good in parts — but its guardrails are <em>advice to the model</em>. hands-on-deck's are <strong>machinery in the tool</strong>, and advice gets ignored on exactly the slide that matters. We didn't leave that as an opinion — <a href="#benchmark">we raced them — § 09</a>.</p>
     </div>
 
     <div class="cmp rv">
@@ -1249,39 +1248,14 @@
         <div class="cmp-dh">The linter reports it in inches with the exact fix command — and after repair, anything still broken is reported as residue, never claimed fixed.</div>
       </div>
       <div class="cmp-row">
-        <div class="cmp-m">Re-theme the deck</div>
-        <div>Unpack and hand-edit hex values across every slide's XML, repack, hope nothing else changed.</div>
-        <div class="cmp-dh">One <code>replace-color</code> op per palette mapping, one atomic patch. A missed color errors out <em>listing the deck's actual palette</em>, with counts.</div>
-      </div>
-      <div class="cmp-row">
         <div class="cmp-m">Create from scratch</div>
-        <div>Write PptxGenJS code. The output is a new file on a blank theme — your template's master, layouts, and brand aren't in the room.</div>
-        <div class="cmp-dh">Write the slide as HTML; <code>html2patch</code> compiles it into ordinary ops — including straight into your branded template's layouts.</div>
-      </div>
-      <div class="cmp-row">
-        <div class="cmp-m">Verify the result</div>
-        <div>Thumbnail grids for template analysis; for real QA, assemble your own soffice + pdftoppm pipeline.</div>
-        <div class="cmp-dh">Built in: render any slide, crop and zoom any region, <code>diff</code> the structural changelog, lint the geometry. Trust is earned per edit.</div>
+        <div>Write PptxGenJS code. The output is a new file on a blank theme — your template's brand isn't in the room.</div>
+        <div class="cmp-dh">Write the slide as HTML; <code>html2patch</code> compiles it into ordinary ops — straight into your branded template's layouts.</div>
       </div>
       <div class="cmp-row">
         <div class="cmp-m">Who owns it</div>
         <div>Proprietary license — no derivative works, no redistribution.</div>
         <div class="cmp-dh">MIT. Fork it, extend it, ship it inside your own product, run it on any model, any platform.</div>
-      </div>
-    </div>
-
-    <div class="cmp-outcomes rv">
-      <div class="cov">
-        <h3>If you're the agent</h3>
-        <p>You never hold raw XML in context, never burn tokens re-reading a deck to find a shape, and every mistake comes back as a correction you can act on — in one round trip.</p>
-      </div>
-      <div class="cov">
-        <h3>If you're the human</h3>
-        <p>The file that comes back always opens, is never half-edited, and still looks like <em>your</em> deck — because the edits ran inside your template instead of around it.</p>
-      </div>
-      <div class="cov">
-        <h3>If you're the platform</h3>
-        <p>It's a CLI under an MIT license. Wire it into any agent product — Claude, or anything else that can run a shell command — and keep the verification loop.</p>
       </div>
     </div>
   </div>
@@ -1294,20 +1268,20 @@
       <div class="ghost-no" aria-hidden="true">09</div>
       <p class="eyebrow"><span class="secno">§ 09</span>The benchmark</p>
       <h2 class="sect">So we made them <em>race</em></h2>
-      <p class="lede">Claims are cheap, so we ran the experiment: same brief, same model, same plan-build-review budget — one agent on hands-on-deck, one on Anthropic's pptx skill. Three from-scratch decks and one heavy edit task, every round judged <strong>blind</strong> by three independent judges with randomized labels and rotated viewing order. Every finding the judges produced shipped as a release — most within hours.</p>
+      <p class="lede">Same brief, same model, same budget — one agent on hands-on-deck, one on Anthropic's pptx skill. Three create rounds and one heavy edit, each judged <strong>blind</strong> by three independent judges. Every finding shipped as a release — most within hours.</p>
     </div>
 
     <div class="bench-duo rv">
       <div class="bd">
         <div class="who">the agent on hands-on-deck</div>
         <h3>works like a <em>designer</em></h3>
-        <p>One slide at a time: write it as HTML, compile it into the deck, render, <strong>look at it</strong>, patch what's wrong, look again. In one run that was 87 tool calls and <strong>27 separate looks at its own renders</strong> — and when a fix was needed, it was a two-line patch op, never a rebuild.</p>
+        <p>Write a slide, compile it in, render, <strong>look at it</strong>, patch what's wrong, look again. One run: <strong>27 separate looks at its own renders</strong>; every fix a two-line op, never a rebuild.</p>
         <p class="stat-line">per-slide loop · <b>renders inspected: 27</b> · fixes: surgical ops</p>
       </div>
       <div class="bd">
         <div class="who">the agent on the pptx skill</div>
         <h3>works like a <em>coder</em></h3>
-        <p>One artifact: a 40KB <code>build.js</code>, written nearly blind, run once, then thumbnails at the end. Faster and cheaper when everything works — but every fix means editing the program and regenerating the deck, and what the thumbnails miss, ships.</p>
+        <p>One 40KB <code>build.js</code>, written nearly blind, run once, thumbnails at the end. Every fix means editing the program and regenerating — and what the thumbnails miss, ships.</p>
         <p class="stat-line">single build script · <b>writes: 2</b> · fixes: edit + regenerate</p>
       </div>
     </div>
@@ -1319,8 +1293,8 @@
           <div class="r-verdict">finding: one overridden lint flag</div>
         </div>
         <div class="r-body">
-          The judges' sharpest catch: <strong>one clipped serif headline</strong>. The linter had flagged it — the agent overrode the flag as a "false positive" without zooming in. The safety net worked; the agent talked itself past it. That's a guidance bug, and guidance we control.
-          <span class="r-fix">v2.2.0 — text-under-picture lint (<code>covered_by</code>), wider serif re-wrap margins, and a rule: no flag is "false positive" without a <code>render --crop</code> zoom</span>
+          Sharpest catch: <strong>one clipped headline</strong> — the linter had flagged it; the agent overrode the flag without zooming in.
+          <span class="r-fix">v2.2.0 — covered_by lint, wider serif margins, and a rule: no flag dismissed without a <code>render --crop</code> zoom</span>
         </div>
       </div>
       <div class="bm-round">
@@ -1329,7 +1303,7 @@
           <div class="r-verdict">judges: "near-flawless mechanics"</div>
         </div>
         <div class="r-body">
-          Zero layout defects — the round-1 failure class was already extinct. The judges' only catch was a single compiler bug: <code>&lt;br&gt;</code> inside a table cell compiled to nothing, so one table read <strong>"Who decideswhat runs next."</strong>
+          Zero layout defects — the round-1 failure class was extinct. Only catch: <code>&lt;br&gt;</code> in a table cell compiled to nothing — <strong>"Who decideswhat runs next."</strong>
           <span class="r-fix">v2.2.1 — <code>&lt;br&gt;</code> survives as a real line break, with a regression test</span>
         </div>
       </div>
@@ -1339,7 +1313,7 @@
           <div class="r-verdict win">judges: 2–1 hands-on-deck, two CLEAR verdicts</div>
         </div>
         <div class="r-body">
-          9/9/9-grade grid discipline, no overflows, no collisions, "airtight" typography — won on exactly the dimension round 1 slipped on. The pptx-skill deck carried edge-bleed artifacts on three slides and a footer collision on its own closer — the same failure modes as rounds 1 and 2, because nothing in a prompt-guidance toolchain learns between rounds.
+          No overflows, no collisions, "airtight" typography — won on exactly the dimension round 1 slipped on. The pptx-skill deck repeated its round-1 and -2 failure modes.
         </div>
       </div>
       <div class="bm-round">
@@ -1348,13 +1322,13 @@
           <div class="r-verdict win">forensic audit: "the cleaner edit by the strict letter" — grade A</div>
         </div>
         <div class="r-body">
-          Each agent re-themed its own deck to a 9-color palette and inserted a slide mid-narrative. Ours delivered <strong>zero collateral damage</strong>, coherent renumbering, and a recolor down to the macOS traffic-light dots. The finding that mattered: the agent had to hand-roll a recolor script, because deck.py had no color op.
-          <span class="r-fix">v2.3.0 — <code>replace-color</code>: a re-theme is now a handful of declarative ops in one atomic patch, with zero-hit errors that list the deck's actual palette</span>
+          Full re-theme + slide insert: <strong>zero collateral damage</strong>, recolored down to the macOS traffic-light dots. The finding: deck.py had no color op.
+          <span class="r-fix">v2.3.0 — <code>replace-color</code>: a re-theme is a handful of declarative ops in one atomic patch</span>
         </div>
       </div>
     </div>
 
-    <p class="bm-kicker rv">Four rounds, one unmistakable pattern: <strong>every finding became machinery</strong> — a lint, a compiler fix, a new op — and that failure class never appeared again. The pptx skill's defects recurred every round, because advice to a model can't accumulate. <strong>Tools learn; prompts don't.</strong> That's the bet this whole project is built on.</p>
+    <p class="bm-kicker rv"><strong>Every finding became machinery</strong> — a lint, a fix, an op — and that failure class never recurred. <strong>Tools learn; prompts don't.</strong> That's the bet this whole project is built on.</p>
   </div>
 </section>
 
@@ -1365,8 +1339,7 @@
       <div class="ghost-no" aria-hidden="true">10</div>
       <p class="eyebrow"><span class="secno">§ 10</span>Provenance</p>
       <h2 class="sect">We use this <em>every week</em></h2>
-      <p class="lede">hands-on-deck wasn't built as a demo. We built it to make <strong>our own decks</strong> — every training <a href="https://every.to/consulting">Every Consulting</a> runs ships with a branded deck, and our agents build them with hands-on-deck: same master template, same brand, same review standards, with agents doing the assembly, the edits, and the visual QA.</p>
-      <p class="lede" style="margin-top:16px;">The hard parts are lessons. We've built <strong>hundreds of decks with Claude</strong>, and felt every way agents fail at PPTX along the way — those failures became this tool's design. The failure-mode list above isn't theory; <strong>it's field notes</strong>. Now it's yours.</p>
+      <p class="lede">Not a demo — we built it to make <strong>our own decks</strong>. Every training <a href="https://every.to/consulting">Every Consulting</a> runs ships with a branded deck our agents build with hands-on-deck. <strong>Hundreds of decks with Claude</strong> later, every way an agent fumbled became a design decision. The failure-mode list above isn't theory; <strong>it's field notes</strong>.</p>
     </div>
     <div class="built-stat rv">
       <span class="lab">even the deck we present this tool with was built by the tool</span>
@@ -1386,25 +1359,22 @@
       <div class="ghost-no" aria-hidden="true">11</div>
       <p class="eyebrow"><span class="secno">§ 11</span>Install</p>
       <h2 class="sect">Three ways in. <em>Pick yours.</em></h2>
-      <p class="lede">hands-on-deck is packaged as an Agent Skill — but underneath it's just a CLI, so any agent that can run a shell command can use it.</p>
+      <p class="lede">Packaged as an Agent Skill — underneath it's just a CLI.</p>
     </div>
     <div class="install-grid rv">
       <div class="inst">
         <p class="where">Claude Code</p>
         <h3>One command</h3>
-        <p>Add the marketplace and the skill is available in every project, from any working directory.</p>
         <div class="inst-cmd"><span class="prompt">&gt;</span> /plugin marketplace add EveryInc/hands-on-deck<br><span class="prompt">&gt;</span> /plugin install hands-on-deck@hands-on-deck</div>
       </div>
       <div class="inst">
         <p class="where">claude.ai</p>
         <h3>Upload the skill</h3>
-        <p>Zip the skill folder and upload it under Settings → Capabilities. Claude picks it up whenever a deck shows up.</p>
         <div class="inst-cmd"><span class="prompt">$</span> zip -r hands-on-deck.zip skills/hands-on-deck<br><span class="t-dim"># then upload in Settings → Capabilities</span></div>
       </div>
       <div class="inst">
         <p class="where">Any agent</p>
         <h3>It's just a CLI</h3>
-        <p>Clone the repo, point your agent at the docs, and let it drive deck.py directly.</p>
         <div class="inst-cmd"><span class="prompt">$</span> git clone https://github.com/EveryInc/hands-on-deck<br><span class="prompt">$</span> python hands-on-deck/skills/hands-on-deck/scripts/deck.py docs</div>
       </div>
     </div>
