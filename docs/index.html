@@ -7,52 +7,80 @@
 <meta name="description" content="One CLI lets AI agents inspect, edit, create, and verify .pptx files with the fidelity of a human operator. MIT licensed, built by Every Consulting.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,300..700;1,8..60,300..700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..900;1,9..144,300..900&family=JetBrains+Mono:ital,wght@0,400;0,500;0,700;1,400&display=swap" rel="stylesheet">
 <style>
+  /* ============================================================
+     Two worlds. Humans speak on paper; the agent works in the dark.
+     The amber thread crosses between them — that's the thesis.
+     ============================================================ */
   :root {
-    --ink:        #0e0c09;
-    --ink-2:      #14110d;
-    --panel:      #161310;
-    --panel-2:    #1b1713;
-    --line:       #2b251c;
-    --line-soft:  #221d16;
-    --cream:      #ece3d0;
-    --cream-dim:  #c9bda6;
-    --muted:      #968b76;
-    --faint:      #6e6553;
-    --amber:      #e8a33d;
-    --amber-soft: #c98f3a;
-    --sage:       #a4bd80;
-    --terracotta: #d98a6c;
-    --red:        #e06c5f;
-    --steel:      #8fa3ad;
     --maxw: 1120px;
-    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
-    --serif: "Source Serif 4", Georgia, serif;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
     --display: "Fraunces", Georgia, serif;
+    /* card interiors are dark in BOTH worlds */
+    --card-ink:    #171310;
+    --card-lift:   #221A14;
+    --card-text:   #C9BDA6;
+    --card-faint:  #6E6253;
+    --card-amber:  #E8A33D;
+    --red:         #E06C5F;
+  }
+
+  /* ---- PAPER world tokens ---- */
+  .w-paper {
+    --bg:      #F6F1E7;
+    --fg:      #1C1612;
+    --sub:     #5C544A;
+    --faint:   #8A8073;
+    --acc:     #915C0D;   /* never #E8A33D directly on paper */
+    --eyebrow: #7A6E5E;
+    --ghost:   #E8DDC9;
+    --hair:    #E3D9C6;
+    --card-bd: #D8CDBA;
+    --card-bg: var(--card-ink);
+    --thread:  #915C0D;
+    background: var(--bg);
+    color: var(--fg);
+  }
+  /* ---- DARK world tokens ---- */
+  .w-dark {
+    --bg:      #181210;
+    --fg:      #FFFEFB;
+    --sub:     #C9BDA6;
+    --faint:   #8A8A84;
+    --acc:     #E8A33D;
+    --eyebrow: #8A8A84;
+    --ghost:   #241B14;
+    --hair:    #3A2E22;
+    --card-bd: #3A2E22;
+    --card-bg: var(--card-lift);
+    --thread:  #E8A33D;
+    background: var(--bg);
+    color: var(--fg);
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html { scroll-behavior: smooth; }
 
   body {
-    background: var(--ink);
-    color: var(--cream);
-    font-family: var(--serif);
+    background: #F6F1E7;
+    color: #1C1612;
+    font-family: var(--display);
+    font-optical-sizing: auto;
     font-size: 18px;
     line-height: 1.65;
     -webkit-font-smoothing: antialiased;
     overflow-x: hidden;
   }
 
-  ::selection { background: var(--amber); color: var(--ink); }
+  ::selection { background: #E8A33D; color: #1C1612; }
 
   /* ---------- atmosphere ---------- */
   .grain {
-    position: fixed; inset: -50%; z-index: 50; pointer-events: none;
+    position: fixed; inset: -50%; z-index: 60; pointer-events: none;
     width: 200%; height: 200%;
     background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 250 250' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    opacity: 0.035;
+    opacity: 0.028;
     animation: grain 9s steps(10) infinite;
   }
   @keyframes grain {
@@ -63,180 +91,237 @@
     80% { transform: translate(2%,-7%); } 90% { transform: translate(-5%,5%); }
   }
 
-  .glow {
-    position: absolute; top: -300px; left: 50%; transform: translateX(-50%);
-    width: 1100px; height: 700px; pointer-events: none;
-    background: radial-gradient(ellipse at center, rgba(232,163,61,0.07) 0%, transparent 62%);
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 28px; position: relative; z-index: 2; }
+
+  /* ---------- the amber thread ----------
+     A 1pt line runs the full page. Each section carries it at its own
+     x (--tx, offset from the right edge); a horizontal jog connects the
+     previous section's x (--txp) to this one. Paper carries #915C0D,
+     dark carries #E8A33D — it changes tone at every world crossing. */
+  section, header.hero, footer { position: relative; }
+  .threaded::before {
+    content: ""; position: absolute; z-index: 1;
+    top: 0; bottom: 0; right: var(--tx);
+    width: 1px; background: var(--thread);
+    pointer-events: none;
+  }
+  .threaded::after {
+    content: ""; position: absolute; z-index: 1;
+    top: 0; height: 1px;
+    right: min(var(--tx), var(--txp));
+    width: calc(max(var(--tx), var(--txp)) - min(var(--tx), var(--txp)) + 1px);
+    background: var(--thread);
+    pointer-events: none;
+  }
+  @media (max-width: 1100px) {
+    .threaded::before, .threaded::after { display: none; }
   }
 
-  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 28px; }
+  /* ---------- world textures ---------- */
+  .w-paper.vignette {
+    background:
+      radial-gradient(140% 100% at 50% 0%, rgba(239,231,216,0) 58%, rgba(231,220,198,0.55) 100%),
+      var(--bg);
+  }
+  .w-dark.glowed {
+    background:
+      radial-gradient(900px 480px at 50% -120px, rgba(232,163,61,0.06), transparent 70%),
+      var(--bg);
+  }
+
+  /* the self-XML wall — what the agent actually sees */
+  .xmlwall {
+    position: absolute; inset: 0; overflow: hidden;
+    pointer-events: none; user-select: none; z-index: 0;
+  }
+  .xmlwall pre {
+    column-count: 4; column-gap: 42px;
+    font-family: var(--mono); font-size: 9.5px; line-height: 1.6;
+    color: #2B2117; height: 110%;
+    padding: 12px 28px;
+    white-space: pre-wrap; word-break: break-all;
+  }
+  .xmlwall .xa { color: #3D2C1A; }
+
+  /* ---------- ghost numerals ---------- */
+  .ghost-no {
+    position: absolute; top: -52px; left: -48px; z-index: 0;
+    font-family: var(--display); font-weight: 560; font-style: normal;
+    font-size: clamp(150px, 19vw, 270px); line-height: 0.78;
+    color: var(--ghost); pointer-events: none; user-select: none;
+  }
+  .w-paper .ghost-no { color: #EDE5D3; }
 
   /* ---------- type helpers ---------- */
   .eyebrow {
     font-family: var(--mono);
-    font-size: 12px; font-weight: 500;
+    font-size: 12px; font-weight: 700;
     letter-spacing: 0.22em; text-transform: uppercase;
-    color: var(--amber);
+    color: var(--acc);
   }
-  .eyebrow .secno { color: var(--faint); margin-right: 1em; }
+  .eyebrow .secno { color: var(--faint); margin-right: 1em; font-weight: 400; }
 
   h2.sect {
     font-family: var(--display);
-    font-optical-sizing: auto;
-    font-weight: 560;
-    font-size: clamp(34px, 4.6vw, 54px);
+    font-weight: 600;
+    font-size: clamp(34px, 4.6vw, 56px);
     line-height: 1.06;
     letter-spacing: -0.015em;
     margin: 18px 0 0;
+    color: var(--fg);
   }
-  h2.sect em { font-style: italic; font-weight: 480; color: var(--amber); }
+  h2.sect em { font-style: italic; font-weight: 480; color: var(--acc); }
 
   .lede {
-    color: var(--cream-dim);
-    font-size: clamp(17px, 1.6vw, 20px);
-    max-width: 62ch;
+    color: var(--sub);
+    font-size: clamp(17px, 1.6vw, 20.5px);
+    font-weight: 420;
+    max-width: 64ch;
     margin-top: 22px;
   }
-  .lede strong { color: var(--cream); font-weight: 600; }
+  .lede strong { color: var(--fg); font-weight: 620; }
+  .lede code, p code {
+    font-family: var(--mono); font-size: 0.82em;
+    color: var(--sub);
+    border: 1px solid var(--hair);
+    padding: 1px 6px; border-radius: 3px;
+  }
 
-  a { color: var(--amber); text-decoration: none; }
+  a { color: var(--acc); text-decoration: none; }
   a:hover { text-decoration: underline; text-underline-offset: 3px; }
 
-  /* ---------- nav ---------- */
-  nav {
-    border-bottom: 1px solid var(--line-soft);
-    position: relative; z-index: 10;
+  .new-flag {
+    display: inline-block; font-family: var(--mono); font-size: 10px; font-weight: 700;
+    letter-spacing: .14em; text-transform: uppercase; color: #F6F1E7;
+    background: var(--acc); border-radius: 3px; padding: 2px 7px 1px;
+    vertical-align: 2px;
   }
+
+  /* ---------- nav (paper) ---------- */
+  nav { border-bottom: 1px solid var(--hair); position: relative; z-index: 10; }
   .nav-inner {
     display: flex; align-items: center; justify-content: space-between;
     padding: 20px 0;
     font-family: var(--mono); font-size: 13px;
   }
-  .wordmark { color: var(--cream); font-weight: 600; letter-spacing: 0.02em; }
-  .wordmark .dollar { color: var(--amber); margin-right: 8px; }
+  .wordmark { color: var(--fg); font-weight: 700; letter-spacing: 0.02em; }
+  .wordmark .dollar { color: var(--acc); margin-right: 8px; }
   .wordmark:hover { text-decoration: none; }
-  .new-flag {
-    display: inline-block; font-family: inherit; font-size: 10px;
-    letter-spacing: .14em; text-transform: uppercase; color: var(--ink);
-    background: var(--amber); border-radius: 3px; padding: 2px 7px 1px;
-    vertical-align: 2px;
-  }
-  .hero-new { margin-top: 18px; font-size: 14px; }
-  .hero-new .new-flag { margin-right: 10px; }
-  .hero-new a { color: var(--amber); border-bottom: 1px dashed rgba(232,163,61,.4); padding-bottom: 2px; }
-  .hero-new a:hover { text-decoration: none; border-bottom-style: solid; }
-  .eyebrow .new-flag { margin-left: 6px; }
-  .nav-links { display: flex; gap: 28px; align-items: center; }
-  .nav-links a { color: var(--muted); transition: color .15s; }
-  .nav-links a:hover { color: var(--cream); text-decoration: none; }
+  .nav-links { display: flex; gap: 26px; align-items: center; }
+  .nav-links a { color: var(--faint); transition: color .15s; }
+  .nav-links a:hover { color: var(--fg); text-decoration: none; }
   .nav-gh {
-    border: 1px solid var(--line); padding: 6px 14px; border-radius: 3px;
-    color: var(--cream) !important;
+    border: 1px solid var(--card-bd); padding: 6px 14px; border-radius: 3px;
+    color: var(--fg) !important;
   }
-  .nav-gh:hover { border-color: var(--amber); color: var(--amber) !important; }
+  .nav-gh:hover { border-color: var(--acc); color: var(--acc) !important; }
 
-  /* ---------- hero ---------- */
-  header.hero { position: relative; overflow: hidden; }
+  /* ---------- hero (paper) ---------- */
   .hero-grid {
     display: grid;
     grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
     gap: 60px;
     align-items: center;
     padding: clamp(64px, 9vw, 120px) 0 clamp(56px, 7vw, 96px);
-    position: relative; z-index: 2;
   }
   .hero-meta {
     font-family: var(--mono); font-size: 12px; letter-spacing: 0.18em;
-    text-transform: uppercase; color: var(--muted);
+    text-transform: uppercase; color: var(--faint);
     display: flex; gap: 14px; flex-wrap: wrap; align-items: center;
   }
-  .hero-meta .dot { color: var(--faint); }
-  .hero-meta .mit { color: var(--sage); }
+  .hero-meta .dot { color: var(--hair); }
+  .hero-meta .mit { color: var(--acc); font-weight: 700; }
 
   h1.title {
     font-family: var(--display);
-    font-optical-sizing: auto;
     font-weight: 640;
-    font-size: clamp(64px, 11vw, 136px);
-    line-height: 0.96;
+    font-size: clamp(64px, 11vw, 140px);
+    line-height: 0.94;
     letter-spacing: -0.03em;
     margin: 26px 0 0;
+    color: var(--fg);
   }
-  h1.title .hand { font-style: italic; font-weight: 420; color: var(--amber); letter-spacing: -0.02em; }
+  h1.title .hand { font-style: italic; font-weight: 420; color: var(--acc); letter-spacing: -0.02em; }
 
   .tagline {
     font-family: var(--display);
-    font-weight: 400;
+    font-weight: 420;
     font-style: italic;
     font-size: clamp(21px, 2.6vw, 29px);
-    color: var(--cream-dim);
+    color: var(--sub);
     margin-top: 20px;
     letter-spacing: -0.01em;
   }
 
   .hero-sub {
-    color: var(--muted);
+    color: var(--sub);
     max-width: 52ch;
     margin-top: 18px;
     font-size: 17px;
   }
   .hero-sub code {
     font-family: var(--mono); font-size: 0.85em;
-    color: var(--cream-dim);
-    background: var(--panel); border: 1px solid var(--line-soft);
+    color: var(--fg);
+    border: 1px solid var(--hair);
     padding: 1px 6px; border-radius: 3px;
   }
+
+  .hero-new { margin-top: 18px; font-size: 14.5px; }
+  .hero-new .new-flag { margin-right: 10px; }
+  .hero-new a { color: var(--acc); border-bottom: 1px dashed rgba(145,92,13,.4); padding-bottom: 2px; }
+  .hero-new a:hover { text-decoration: none; border-bottom-style: solid; }
 
   .hero-grid > *, .patch-grid > *, .prin > *, .install-grid > *, .cov-grid > *, .paths > * { min-width: 0; }
   .hero-actions { margin-top: 38px; display: flex; gap: 16px; flex-wrap: wrap; align-items: stretch; max-width: 100%; }
 
+  /* the install line is a terminal — terminals stay dark on paper */
   .install-line {
     display: flex; align-items: center; gap: 14px;
     font-family: var(--mono); font-size: 14px;
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 4px;
+    background: var(--card-ink);
+    border: 1px solid var(--card-bd);
+    border-radius: 5px;
     padding: 13px 18px;
-    color: var(--cream);
+    color: var(--card-text);
     white-space: nowrap;
     overflow-x: auto;
     min-width: 0;
     max-width: 100%;
   }
-  .install-line .prompt { color: var(--amber); user-select: none; }
-  .install-line .cmd-dim { color: var(--muted); }
+  .install-line .prompt { color: var(--card-amber); user-select: none; }
+  .install-line .cmd-dim { color: var(--card-faint); }
   .copy-btn {
     font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em;
-    color: var(--faint); background: none; border: 1px solid var(--line-soft);
+    color: var(--card-faint); background: none; border: 1px solid #3A2E22;
     border-radius: 3px; padding: 4px 9px; cursor: pointer;
     text-transform: uppercase; transition: all .15s; flex-shrink: 0;
   }
-  .copy-btn:hover { color: var(--amber); border-color: var(--amber-soft); }
-  .copy-btn.copied { color: var(--sage); border-color: var(--sage); }
+  .copy-btn:hover { color: var(--card-amber); border-color: var(--card-amber); }
+  .copy-btn.copied { color: #F6F1E7; border-color: var(--card-amber); background: rgba(232,163,61,.15); }
 
   .btn-gh {
     display: inline-flex; align-items: center; gap: 10px;
     font-family: var(--mono); font-size: 14px;
-    border: 1px solid var(--amber-soft);
-    color: var(--amber);
-    border-radius: 4px;
+    border: 1px solid var(--acc);
+    color: var(--acc);
+    border-radius: 5px;
     padding: 13px 22px;
     transition: all .15s;
   }
-  .btn-gh:hover { background: var(--amber); color: var(--ink); text-decoration: none; }
+  .btn-gh:hover { background: var(--acc); color: #F6F1E7; text-decoration: none; }
   .btn-gh svg { width: 16px; height: 16px; fill: currentColor; }
 
-  /* ---------- hero slide wireframe ---------- */
+  /* ---------- hero slide wireframe — a dark slide on the paper desk ---------- */
   .slide-fig { position: relative; }
   .slide-frame {
     aspect-ratio: 16 / 9;
-    border: 1px solid var(--line);
+    border: 1px solid var(--card-bd);
     background:
-      linear-gradient(rgba(232,163,61,0.025), rgba(232,163,61,0) 40%),
-      var(--ink-2);
-    border-radius: 4px;
+      linear-gradient(rgba(232,163,61,0.04), rgba(232,163,61,0) 40%),
+      var(--card-ink);
+    border-radius: 5px;
     position: relative;
-    box-shadow: 0 30px 80px -20px rgba(0,0,0,0.7);
+    box-shadow: 0 30px 70px -24px rgba(28,22,18,0.55);
     transform: rotate(-1.2deg);
   }
   .slide-frame::before {
@@ -247,103 +332,144 @@
   }
   .shape {
     position: absolute;
-    border: 1px dashed rgba(150,139,118,0.55);
+    border: 1px dashed rgba(201,189,166,0.5);
     border-radius: 2px;
   }
   .shape .tag {
     position: absolute; top: -17px; left: -1px;
     font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em;
-    color: var(--muted); white-space: nowrap;
+    color: #8A8A84; white-space: nowrap;
   }
-  .shape .tag b { color: var(--amber); font-weight: 500; }
+  .shape .tag b { color: var(--card-amber); font-weight: 500; }
   .shape-title { top: 9%; left: 6%; width: 64%; height: 17%; }
   .shape-title .fill {
     position: absolute; inset: 18% 8% auto 6%;
-    height: 30%; background: var(--cream-dim); opacity: .5; border-radius: 1px;
+    height: 30%; background: var(--card-text); opacity: .55; border-radius: 1px;
   }
   .shape-title .fill2 {
     position: absolute; inset: 60% 40% auto 6%;
-    height: 22%; background: var(--muted); opacity: .35; border-radius: 1px;
+    height: 22%; background: var(--card-text); opacity: .3; border-radius: 1px;
   }
   .shape-body { top: 36%; left: 6%; width: 50%; height: 50%; }
   .shape-body i {
     position: absolute; left: 7%; height: 7%;
-    background: var(--muted); opacity: .35; border-radius: 1px; display: block;
+    background: var(--card-text); opacity: .3; border-radius: 1px; display: block;
   }
   .shape-pic {
     top: 36%; left: 62%; width: 32%; height: 50%;
     border-style: solid; border-color: rgba(232,163,61,0.85);
     background: repeating-linear-gradient(-45deg, rgba(232,163,61,0.10) 0 6px, transparent 6px 12px);
   }
-  .shape-pic .tag { color: var(--amber); top: auto; bottom: -19px; left: auto; right: -1px; }
+  .shape-pic .tag { color: var(--card-amber); top: auto; bottom: -19px; left: auto; right: -1px; }
   .slide-caption {
     margin-top: 30px;
     font-family: var(--mono); font-size: 12px; line-height: 1.8;
     color: var(--faint);
   }
-  .slide-caption .op { color: var(--sage); }
+  .slide-caption .op { color: var(--acc); font-weight: 700; }
 
   /* ---------- sections ---------- */
-  section { border-top: 1px solid var(--line-soft); position: relative; }
-  .sect-pad { padding: clamp(64px, 8vw, 110px) 0; }
+  .sect-pad { padding: clamp(72px, 9vw, 128px) 0; }
+  .sect-head { position: relative; padding-top: 26px; }
+
+  /* ---------- § 01 problem chips ---------- */
+  .prob-grid {
+    display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
+    gap: clamp(32px, 5vw, 72px);
+    margin-top: 52px; align-items: start;
+  }
+  .prob-copy p { color: var(--sub); font-size: 17px; max-width: 54ch; }
+  .prob-copy p + p { margin-top: 16px; }
+  .prob-copy p strong { color: var(--fg); font-weight: 620; }
+  .chip-stack { display: flex; flex-direction: column; gap: 14px; align-items: flex-start; }
+  .chip-label {
+    font-family: var(--mono); font-size: 11.5px; font-weight: 700;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--eyebrow);
+    margin-bottom: 4px;
+  }
+  .chip {
+    font-family: var(--mono); font-size: 13px; line-height: 1.5;
+    color: var(--acc); border: 1px solid var(--acc);
+    border-radius: 3px; padding: 9px 14px;
+    background: rgba(145,92,13,0.04);
+  }
+  .chip:nth-child(odd) { transform: rotate(-0.5deg); }
+  .chip:nth-child(even) { transform: rotate(0.4deg); }
+  .chip.solid {
+    background: var(--acc); color: #F6F1E7; font-weight: 700;
+  }
+  .prob-kicker {
+    margin-top: 56px; text-align: center;
+    font-family: var(--display); font-style: italic; font-weight: 460;
+    font-size: clamp(20px, 2.4vw, 27px); color: var(--sub);
+  }
+  .prob-kicker .hl { color: var(--acc); }
 
   /* ---------- three paths ---------- */
   .paths {
     display: grid; grid-template-columns: 1fr 1fr 1fr;
     gap: 0;
     margin-top: 56px;
-    border: 1px solid var(--line-soft);
-    border-radius: 5px;
+    border: 1px solid var(--hair);
+    border-radius: 6px;
     overflow: hidden;
+    position: relative; z-index: 2;
   }
   .path {
     padding: 34px 30px 38px;
-    background: var(--ink-2);
-    border-left: 1px solid var(--line-soft);
+    background: rgba(24,18,16,0.45);
+    border-left: 1px solid var(--hair);
     position: relative;
+    backdrop-filter: blur(2px);
   }
   .path:first-child { border-left: none; }
   .path h3 {
-    font-family: var(--mono); font-size: 13px; font-weight: 600;
+    font-family: var(--mono); font-size: 13px; font-weight: 700;
     letter-spacing: 0.14em; text-transform: uppercase;
-    color: var(--muted);
+    color: var(--faint);
     margin-bottom: 16px;
-    display: flex; align-items: baseline; gap: 12px;
+    display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap;
   }
   .path .verdict {
     font-family: var(--mono); font-size: 10.5px; font-weight: 500;
     letter-spacing: 0.1em; padding: 2px 8px; border-radius: 2px;
   }
   .path.bad .verdict { color: var(--red); border: 1px solid rgba(224,108,95,0.4); }
-  .path.good { background: var(--panel-2); }
-  .path.good .verdict { color: var(--sage); border: 1px solid rgba(164,189,128,0.45); }
-  .path.good h3 { color: var(--cream); }
+  .path.good { background: rgba(34,26,20,0.92); }
+  .path.good .verdict { color: var(--acc); border: 1px solid rgba(232,163,61,0.5); }
+  .path.good h3 { color: var(--fg); }
   .path.good::before {
     content: ""; position: absolute; top: 0; left: 0; right: 0; height: 2px;
-    background: var(--amber);
+    background: var(--acc);
   }
-  .path p { color: var(--muted); font-size: 16px; }
-  .path.good p { color: var(--cream-dim); }
-  .path p code { font-family: var(--mono); font-size: 0.82em; color: var(--cream-dim); }
+  .path p { color: var(--sub); font-size: 16px; }
+  .path.good p { color: var(--sub); }
+  .path p code { font-family: var(--mono); font-size: 0.82em; color: var(--fg); border: none; padding: 0; }
+  .zip-stat {
+    margin-top: 26px; position: relative; z-index: 2;
+    font-family: var(--mono); font-size: 13px; line-height: 1.8; color: var(--faint);
+  }
+  .zip-stat b { color: var(--acc); font-weight: 700; }
 
-  /* ---------- code blocks ---------- */
+  /* ---------- terminal cards (dark in BOTH worlds) ---------- */
   .term {
-    background: #0a0907;
-    border: 1px solid var(--line);
+    background: var(--card-ink);
+    border: 1px solid var(--card-bd);
     border-radius: 6px;
     overflow: hidden;
-    box-shadow: 0 24px 70px -24px rgba(0,0,0,0.8);
+    box-shadow: 0 24px 60px -28px rgba(20,14,10,0.6);
+    position: relative; z-index: 2;
   }
+  .w-dark .term { background: var(--card-lift); box-shadow: 0 24px 70px -24px rgba(0,0,0,0.8); }
   .term-bar {
     display: flex; align-items: center; gap: 10px;
     padding: 11px 16px;
-    border-bottom: 1px solid var(--line-soft);
-    background: var(--panel);
-    font-family: var(--mono); font-size: 12px; color: var(--faint);
+    border-bottom: 1px solid rgba(232,163,61,0.18);
+    font-family: var(--mono); font-size: 12px; color: var(--card-faint);
   }
   .term-bar .dots { display: flex; gap: 6px; }
-  .term-bar .dots i { width: 9px; height: 9px; border-radius: 50%; background: var(--line); display: block; }
-  .term-bar .dots i:first-child { background: #4a3f2e; }
+  .term-bar .dots i { width: 9px; height: 9px; border-radius: 50%; background: #3A2E22; display: block; }
+  .term-bar .dots i:first-child { background: #6B4F23; }
   .term-bar .fname { margin-left: 6px; letter-spacing: 0.06em; }
   .term pre {
     padding: 22px 24px;
@@ -351,23 +477,21 @@
     font-size: 13.5px;
     line-height: 1.75;
     overflow-x: auto;
-    color: var(--cream-dim);
+    color: var(--card-text);
   }
 
-  /* json tokens */
-  .j-key  { color: var(--steel); }
-  .j-str  { color: var(--sage); }
-  .j-op   { color: var(--amber); font-weight: 600; }
-  .j-num  { color: var(--terracotta); }
-  .j-pun  { color: var(--faint); }
-
-  /* terminal tokens */
-  .t-red    { color: var(--red); font-weight: 600; }
-  .t-dim    { color: var(--faint); }
-  .t-amber  { color: var(--amber); }
-  .t-sage   { color: var(--sage); }
-  .t-cream  { color: var(--cream); }
-  .t-prompt { color: var(--amber); }
+  /* json + terminal tokens — card discipline: warm body, amber accents */
+  .j-key  { color: #9C8E76; }
+  .j-str  { color: var(--card-text); }
+  .j-op   { color: var(--card-amber); font-weight: 700; }
+  .j-num  { color: var(--card-amber); }
+  .j-pun  { color: var(--card-faint); }
+  .t-red    { color: var(--red); font-weight: 700; }
+  .t-dim    { color: var(--card-faint); }
+  .t-amber  { color: var(--card-amber); }
+  .t-ok     { color: var(--card-amber); }
+  .t-cream  { color: #EDE4D2; }
+  .t-prompt { color: var(--card-amber); }
 
   /* ---------- patch model layout ---------- */
   .patch-grid .term pre { font-size: 13px; }
@@ -378,220 +502,293 @@
     align-items: start;
   }
   .op-notes { display: flex; flex-direction: column; }
-  .op-note {
-    padding: 20px 0;
-    border-top: 1px solid var(--line-soft);
-  }
+  .op-note { padding: 20px 0; border-top: 1px solid var(--hair); }
   .op-note:first-child { border-top: none; padding-top: 6px; }
   .op-note h4 {
-    font-family: var(--mono); font-size: 13px; font-weight: 600;
-    color: var(--amber); letter-spacing: 0.04em;
+    font-family: var(--mono); font-size: 13px; font-weight: 700;
+    color: var(--acc); letter-spacing: 0.04em;
     margin-bottom: 6px;
   }
-  .op-note p { color: var(--muted); font-size: 15.5px; line-height: 1.55; }
+  .op-note h4 em { font-style: italic; }
+  .op-note p { color: var(--sub); font-size: 15.5px; line-height: 1.55; }
+  .op-note p strong { color: var(--fg); font-weight: 620; }
   .patch-kicker {
     margin-top: 34px;
     font-family: var(--mono); font-size: 13px; line-height: 1.8;
     color: var(--faint);
   }
-  .patch-kicker b { color: var(--sage); font-weight: 500; }
+  .patch-kicker b { color: var(--acc); font-weight: 700; }
+
+  /* ---------- § the CLI — gesture map (paper) ---------- */
+  .gest { margin-top: 60px; position: relative; z-index: 2; }
+  .gest-head {
+    display: grid; grid-template-columns: minmax(0,5fr) 40px minmax(0,7fr);
+    gap: 18px; padding-bottom: 12px;
+    font-family: var(--mono); font-size: 11.5px; font-weight: 700;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--eyebrow);
+  }
+  .gest-head span:first-child { text-align: right; }
+  .gest-row {
+    display: grid; grid-template-columns: minmax(0,5fr) 40px minmax(0,7fr);
+    gap: 18px; align-items: baseline;
+    padding: 19px 0;
+    border-top: 1px solid var(--acc);
+  }
+  .gest-row .g-h {
+    font-family: var(--display); font-weight: 560;
+    font-size: clamp(19px, 2.1vw, 25px); letter-spacing: -0.01em;
+    color: var(--fg); text-align: right;
+  }
+  .gest-row .g-a { color: var(--acc); font-family: var(--mono); font-size: 15px; text-align: center; }
+  .gest-row .g-c { font-family: var(--mono); font-size: 14.5px; color: var(--sub); }
+  .gest-row .g-c b { color: var(--fg); font-weight: 700; }
+  .gest-row .g-c .dim { color: var(--faint); }
+  .gest-final {
+    border-top: 1px solid var(--acc); padding: 22px 0 0;
+    font-family: var(--mono); font-size: 14.5px; font-weight: 700; color: var(--acc);
+    text-align: right;
+  }
+  .gest-kicker {
+    margin-top: 52px; text-align: center;
+    font-family: var(--display); font-style: italic; font-weight: 460;
+    font-size: clamp(20px, 2.4vw, 27px); color: var(--sub);
+  }
+  .gest-kicker .hl { color: var(--acc); }
 
   /* ---------- principles ---------- */
-  .principles { margin-top: 64px; counter-reset: prin; }
+  .principles { margin-top: 64px; position: relative; z-index: 2; }
   .prin {
     display: grid;
     grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
     gap: clamp(28px, 5vw, 72px);
     padding: 52px 0;
-    border-top: 1px solid var(--line-soft);
+    border-top: 1px solid var(--hair);
     align-items: start;
   }
   .prin:first-child { border-top: none; padding-top: 0; }
   .prin-head { position: sticky; top: 32px; }
   .prin-no {
-    font-family: var(--mono); font-size: 12px; letter-spacing: 0.2em;
+    font-family: var(--mono); font-size: 12px; font-weight: 700;
+    letter-spacing: 0.16em; text-transform: uppercase;
     color: var(--faint);
   }
-  .prin-no::before { counter-increment: prin; content: "0" counter(prin); color: var(--amber); margin-right: 8px; font-size: 15px; }
+  .prin-no b { color: var(--acc); margin-right: 8px; }
   .prin h3 {
-    font-family: var(--display); font-weight: 540;
+    font-family: var(--display); font-weight: 560;
     font-size: clamp(25px, 2.7vw, 33px);
     line-height: 1.12; letter-spacing: -0.01em;
-    margin-top: 12px;
+    margin-top: 12px; color: var(--fg);
   }
-  .prin h3 em { font-style: italic; font-weight: 440; color: var(--amber); }
-  .prin-body p { color: var(--muted); font-size: 16.5px; max-width: 56ch; }
+  .prin h3 em { font-style: italic; font-weight: 440; color: var(--acc); }
+  .prin-body p { color: var(--sub); font-size: 16.5px; max-width: 56ch; }
   .prin-body p + p { margin-top: 14px; }
-  .prin-body p strong { color: var(--cream-dim); font-weight: 600; }
-  .prin-body p code { font-family: var(--mono); font-size: 0.82em; color: var(--cream-dim); background: var(--panel); border: 1px solid var(--line-soft); padding: 1px 5px; border-radius: 3px; }
+  .prin-body p strong { color: var(--fg); font-weight: 620; }
+  .prin-body p code { color: var(--sub); }
   .prin-body .term { margin-top: 24px; }
   .prin-body .term pre { font-size: 12.5px; }
 
-  /* ---------- comparison ---------- */
+  /* ---------- coverage (paper) ---------- */
+  .cov-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 1px; background: var(--hair);
+    border: 1px solid var(--hair); border-radius: 6px;
+    overflow: hidden; margin-top: 56px;
+    position: relative; z-index: 2;
+  }
+  .cov { background: var(--bg); padding: 30px 28px 34px; transition: background .2s; }
+  .w-paper .cov { background: #F9F5EC; }
+  .w-paper .cov:hover { background: #FCF9F2; }
+  .w-dark .cov { background: #1D1612; }
+  .w-dark .cov:hover { background: #221A14; }
+  .cov h3 {
+    font-family: var(--mono); font-size: 14px; font-weight: 700;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--fg); margin-bottom: 10px;
+    display: flex; align-items: baseline; gap: 10px;
+  }
+  .cov h3::before { content: "▸"; color: var(--acc); font-size: 11px; }
+  .cov p { color: var(--sub); font-size: 15px; line-height: 1.55; }
+  .cov p code { color: var(--sub); }
+  .outscope {
+    margin-top: 28px;
+    font-family: var(--mono); font-size: 13px; line-height: 1.8;
+    color: var(--faint);
+    border-left: 2px solid var(--acc);
+    padding-left: 18px;
+    position: relative; z-index: 2;
+  }
+  .outscope b { color: var(--sub); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; font-size: 11.5px; }
+
+  /* ---------- comparison (dark) ---------- */
   .cmp {
-    margin-top: 56px; border: 1px solid var(--line-soft); border-radius: 5px;
-    overflow: hidden; background: var(--line-soft);
+    margin-top: 56px; border: 1px solid var(--hair); border-radius: 6px;
+    overflow: hidden; background: var(--hair);
     display: grid; gap: 1px;
+    position: relative; z-index: 2;
   }
   .cmp-row {
     display: grid; grid-template-columns: 0.62fr 1fr 1fr; gap: 1px;
-    background: var(--line-soft);
+    background: var(--hair);
   }
-  .cmp-row > div { background: var(--ink-2); padding: 18px 20px; color: var(--muted); font-size: 14.5px; line-height: 1.55; }
-  .cmp-row > div code { font-family: var(--mono); font-size: 0.85em; color: var(--cream-dim); }
+  .cmp-row > div { background: #1D1612; padding: 18px 20px; color: var(--sub); font-size: 14.5px; line-height: 1.55; }
+  .cmp-row > div code { font-family: var(--mono); font-size: 0.85em; color: var(--fg); border: none; padding: 0; }
   .cmp-head > div {
-    font-family: var(--mono); font-size: 11.5px; font-weight: 600;
+    font-family: var(--mono); font-size: 11.5px; font-weight: 700;
     letter-spacing: 0.12em; text-transform: uppercase; color: var(--faint);
-    padding: 14px 20px; background: var(--panel);
+    padding: 14px 20px; background: var(--card-lift);
   }
-  .cmp-head > .cmp-dh { color: var(--amber); }
+  .cmp-head > .cmp-dh { color: var(--acc); }
   .cmp-m {
-    font-family: var(--mono); font-size: 12.5px; font-weight: 600;
-    letter-spacing: 0.06em; text-transform: uppercase; color: var(--cream-dim) !important;
+    font-family: var(--mono); font-size: 12.5px; font-weight: 700;
+    letter-spacing: 0.06em; text-transform: uppercase; color: var(--fg) !important;
   }
-  .cmp-row > .cmp-dh { background: #1a1510; color: var(--cream-dim); }
-  .cmp-row > .cmp-dh em { color: var(--amber); font-style: italic; }
+  .cmp-row > .cmp-dh { background: #241B14; color: var(--sub); }
+  .cmp-row > .cmp-dh em { color: var(--acc); font-style: italic; }
   .cmp-outcomes {
     display: grid; grid-template-columns: repeat(3, 1fr);
-    gap: 1px; background: var(--line-soft);
-    border: 1px solid var(--line-soft); border-radius: 5px;
+    gap: 1px; background: var(--hair);
+    border: 1px solid var(--hair); border-radius: 6px;
     overflow: hidden; margin-top: 28px;
+    position: relative; z-index: 2;
   }
   @media (max-width: 880px) {
     .cmp-row { grid-template-columns: 1fr; }
     .cmp-head { display: none; }
-    .cmp-row > .cmp-dh::before { content: "hands-on-deck — "; color: var(--amber); font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
+    .cmp-row > .cmp-dh::before { content: "hands-on-deck — "; color: var(--acc); font-family: var(--mono); font-size: 11px; letter-spacing: .1em; text-transform: uppercase; }
     .cmp-outcomes { grid-template-columns: 1fr; }
   }
 
-  /* ---------- benchmark ---------- */
+  /* ---------- benchmark (dark) ---------- */
   .bench-duo {
     display: grid; grid-template-columns: 1fr 1fr;
-    gap: 1px; background: var(--line-soft);
-    border: 1px solid var(--line-soft); border-radius: 5px;
+    gap: 1px; background: var(--hair);
+    border: 1px solid var(--hair); border-radius: 6px;
     overflow: hidden; margin-top: 40px;
+    position: relative; z-index: 2;
   }
-  .bd {
-    background: var(--ink-2); padding: 30px 28px 32px;
-  }
+  .bd { background: #1D1612; padding: 30px 28px 32px; }
   .bd .who {
-    font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.12em;
+    font-family: var(--mono); font-size: 11.5px; font-weight: 700; letter-spacing: 0.12em;
     text-transform: uppercase; color: var(--faint); margin-bottom: 8px;
   }
   .bd h3 {
-    font-size: 21px; font-weight: 600; color: var(--cream);
+    font-family: var(--display);
+    font-size: 22px; font-weight: 600; color: var(--fg);
     letter-spacing: -0.01em; margin-bottom: 12px;
   }
-  .bd h3 em { font-style: italic; color: var(--amber); font-weight: 480; }
-  .bd p { color: var(--muted); font-size: 15px; line-height: 1.6; }
-  .bd p code { font-family: var(--mono); font-size: 0.84em; color: var(--cream-dim); }
+  .bd h3 em { font-style: italic; color: var(--acc); font-weight: 480; }
+  .bd p { color: var(--sub); font-size: 15px; line-height: 1.6; }
+  .bd p strong { color: var(--fg); font-weight: 620; }
+  .bd p code { color: var(--sub); }
   .bd .stat-line {
     margin-top: 16px; font-family: var(--mono); font-size: 12.5px;
     color: var(--faint); line-height: 1.7;
   }
-  .bd .stat-line b { color: var(--cream-dim); font-weight: 500; }
-  .bm-rounds { margin-top: 40px; border-top: 1px solid var(--line-soft); }
+  .bd .stat-line b { color: var(--acc); font-weight: 700; }
+  .bm-rounds { margin-top: 40px; border-top: 1px solid var(--hair); position: relative; z-index: 2; }
   .bm-round {
-    display: grid; grid-template-columns: 150px 1fr;
+    display: grid; grid-template-columns: 170px 1fr;
     gap: 24px; padding: 22px 4px;
-    border-bottom: 1px solid var(--line-soft);
+    border-bottom: 1px solid var(--hair);
   }
   .bm-round .r-head { font-family: var(--mono); font-size: 12px; line-height: 1.7; }
-  .bm-round .r-name { color: var(--cream); letter-spacing: 0.08em; text-transform: uppercase; }
+  .bm-round .r-name { color: var(--fg); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; }
   .bm-round .r-verdict { color: var(--faint); }
-  .bm-round .r-verdict.win { color: var(--sage); }
-  .bm-round .r-body { color: var(--muted); font-size: 14.5px; line-height: 1.6; }
-  .bm-round .r-body strong { color: var(--cream-dim); font-weight: 600; }
+  .bm-round .r-verdict.win { color: var(--acc); }
+  .bm-round .r-body { color: var(--sub); font-size: 14.5px; line-height: 1.6; }
+  .bm-round .r-body strong { color: var(--fg); font-weight: 620; }
   .bm-round .r-fix {
     display: block; margin-top: 8px;
-    font-family: var(--mono); font-size: 12.5px; color: var(--amber-soft);
+    font-family: var(--mono); font-size: 12.5px; color: var(--acc);
   }
   .bm-round .r-fix::before { content: "↳ shipped: "; color: var(--faint); }
   .bm-kicker {
-    margin-top: 34px; font-size: 17px; line-height: 1.6; color: var(--cream-dim);
-    border-left: 2px solid var(--amber); padding-left: 20px;
+    margin-top: 34px; font-size: 17px; line-height: 1.6; color: var(--sub);
+    border-left: 2px solid var(--acc); padding-left: 20px;
+    position: relative; z-index: 2;
   }
-  .bm-kicker strong { color: var(--cream); }
+  .bm-kicker strong { color: var(--fg); }
   @media (max-width: 880px) {
     .bench-duo { grid-template-columns: 1fr; }
     .bm-round { grid-template-columns: 1fr; gap: 8px; }
   }
 
-  /* ---------- coverage ---------- */
-  .cov-grid {
-    display: grid; grid-template-columns: repeat(3, 1fr);
-    gap: 1px; background: var(--line-soft);
-    border: 1px solid var(--line-soft); border-radius: 5px;
-    overflow: hidden; margin-top: 56px;
+  /* ---------- provenance (paper) ---------- */
+  .built-stat {
+    margin-top: 40px;
+    border-top: 1px solid var(--acc);
+    border-bottom: 1px solid var(--acc);
+    padding: 18px 4px;
+    font-family: var(--mono); font-size: 13.5px; line-height: 1.9;
+    color: var(--acc); font-weight: 700;
+    position: relative; z-index: 2;
   }
-  .cov {
-    background: var(--ink-2); padding: 30px 28px 34px;
-    transition: background .2s;
+  .built-stat .lab {
+    display: block; font-size: 11px; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--eyebrow); font-weight: 700;
   }
-  .cov:hover { background: var(--panel-2); }
-  .cov h3 {
-    font-family: var(--mono); font-size: 14px; font-weight: 600;
-    letter-spacing: 0.1em; text-transform: uppercase;
-    color: var(--cream); margin-bottom: 10px;
-    display: flex; align-items: baseline; gap: 10px;
-  }
-  .cov h3::before { content: "▸"; color: var(--amber); font-size: 11px; }
-  .cov p { color: var(--muted); font-size: 15px; line-height: 1.55; }
-  .cov p code { font-family: var(--mono); font-size: 0.84em; color: var(--cream-dim); }
-  .outscope {
-    margin-top: 28px;
-    font-family: var(--mono); font-size: 13px; line-height: 1.8;
-    color: var(--faint);
-    border-left: 2px solid var(--line);
-    padding-left: 18px;
-  }
-  .outscope b { color: var(--muted); font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; font-size: 11.5px; }
 
   /* ---------- install ---------- */
   .install-grid {
     display: grid; grid-template-columns: repeat(3, 1fr);
     gap: 22px; margin-top: 56px;
+    position: relative; z-index: 2;
   }
   .inst {
-    border: 1px solid var(--line); border-radius: 6px;
-    background: var(--ink-2);
+    border: 1px solid var(--hair); border-radius: 6px;
+    background: #F9F5EC;
     padding: 28px 26px 30px;
     display: flex; flex-direction: column; gap: 14px;
     transition: border-color .2s, transform .2s;
   }
-  .inst:hover { border-color: var(--amber-soft); transform: translateY(-3px); }
+  .inst:hover { border-color: var(--acc); transform: translateY(-3px); }
   .inst .where {
-    font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.18em;
-    text-transform: uppercase; color: var(--amber);
+    font-family: var(--mono); font-size: 11.5px; font-weight: 700; letter-spacing: 0.18em;
+    text-transform: uppercase; color: var(--acc);
   }
-  .inst h3 { font-family: var(--display); font-weight: 540; font-size: 23px; letter-spacing: -0.01em; }
-  .inst p { color: var(--muted); font-size: 15px; flex-grow: 1; }
+  .inst h3 { font-family: var(--display); font-weight: 560; font-size: 23px; letter-spacing: -0.01em; color: var(--fg); }
+  .inst p { color: var(--sub); font-size: 15px; flex-grow: 1; }
   .inst .inst-cmd {
     font-family: var(--mono); font-size: 12.5px; line-height: 1.7;
-    background: #0a0907; border: 1px solid var(--line-soft); border-radius: 4px;
-    padding: 12px 14px; color: var(--cream-dim);
+    background: var(--card-ink); border: 1px solid var(--card-bd); border-radius: 4px;
+    padding: 12px 14px; color: var(--card-text);
     overflow-x: auto; white-space: pre;
-    position: relative;
   }
-  .inst .inst-cmd .prompt { color: var(--amber); user-select: none; }
-  .inst .inst-cmd .t-dim { color: var(--faint); }
+  .inst .inst-cmd .prompt { color: var(--card-amber); user-select: none; }
+  .inst .inst-cmd .t-dim { color: var(--card-faint); }
 
-  /* ---------- footer ---------- */
-  footer {
-    border-top: 1px solid var(--line-soft);
-    padding: 56px 0 72px;
+  /* ---------- close (paper) ---------- */
+  .close-pad { padding: clamp(90px, 12vw, 170px) 0 clamp(80px, 10vw, 150px); text-align: center; }
+  .close-eyebrow {
+    font-family: var(--mono); font-size: 12px; font-weight: 700;
+    letter-spacing: 0.22em; text-transform: uppercase; color: var(--eyebrow);
   }
+  h2.close-line {
+    font-family: var(--display); font-weight: 620;
+    font-size: clamp(40px, 6.4vw, 84px);
+    line-height: 1.04; letter-spacing: -0.02em;
+    margin: 26px auto 0; max-width: 16ch; color: var(--fg);
+  }
+  h2.close-line em { font-style: italic; font-weight: 460; color: var(--acc); }
+  .close-repo {
+    margin-top: 34px;
+    font-family: var(--mono); font-size: 15px; color: var(--sub);
+  }
+  .close-repo a { color: var(--acc); font-weight: 700; }
+
+  /* ---------- footer (paper) ---------- */
+  footer { border-top: 1px solid var(--hair); padding: 48px 0 64px; }
   .foot-inner {
     display: flex; justify-content: space-between; align-items: flex-start;
     gap: 32px; flex-wrap: wrap;
     font-family: var(--mono); font-size: 13px; color: var(--faint); line-height: 2;
   }
-  .foot-inner a { color: var(--muted); }
-  .foot-inner a:hover { color: var(--amber); }
+  .foot-inner a { color: var(--sub); }
+  .foot-inner a:hover { color: var(--acc); }
   .foot-sig { text-align: right; }
-  .foot-sig .every { color: var(--cream-dim); }
+  .foot-sig .every { color: var(--fg); }
 
-  /* ---------- reveal (hidden state only when JS is running) ---------- */
+  /* ---------- reveal ---------- */
   .js .rv { opacity: 0; transform: translateY(22px); transition: opacity .7s ease, transform .7s ease; }
   .js .rv.in { opacity: 1; transform: none; }
   @media (prefers-reduced-motion: reduce) {
@@ -605,23 +802,29 @@
     .hero-grid { grid-template-columns: 1fr; gap: 70px; }
     .slide-fig { max-width: 560px; }
     .patch-grid { grid-template-columns: 1fr; gap: 36px; }
+    .prob-grid { grid-template-columns: 1fr; }
     .prin { grid-template-columns: 1fr; gap: 18px; padding: 44px 0; }
     .prin-head { position: static; }
     .cov-grid { grid-template-columns: 1fr 1fr; }
     .install-grid { grid-template-columns: 1fr; }
+    .gest-row, .gest-head { grid-template-columns: 1fr; gap: 4px; }
+    .gest-row .g-h, .gest-head span:first-child { text-align: left; }
+    .gest-row .g-a, .gest-head span:nth-child(2) { display: none; }
+    .gest-final { text-align: left; }
   }
   @media (max-width: 660px) {
     body { font-size: 17px; }
     .wrap { padding: 0 20px; }
     .nav-links a:not(.nav-gh) { display: none; }
     .paths { grid-template-columns: 1fr; }
-    .path { border-left: none; border-top: 1px solid var(--line-soft); }
+    .path { border-left: none; border-top: 1px solid var(--hair); }
     .path:first-child { border-top: none; }
     .cov-grid { grid-template-columns: 1fr; }
     .term pre { font-size: 12px; padding: 18px 16px; }
     .prin-body .term pre { font-size: 11px; }
     .install-line { font-size: 12.5px; padding: 12px 14px; width: 100%; }
     .foot-sig { text-align: left; }
+    .ghost-no { font-size: 120px; }
   }
 </style>
 </head>
@@ -629,25 +832,24 @@
 
 <div class="grain" aria-hidden="true"></div>
 
-<nav>
+<nav class="w-paper">
   <div class="wrap nav-inner">
     <a class="wordmark" href="#"><span class="dollar">$</span>hands-on-deck</a>
     <div class="nav-links">
+      <a href="#problem">the problem</a>
       <a href="#patch-model">patch model</a>
-      <a href="#principles">principles</a>
+      <a href="#cli">the cli</a>
       <a href="#html">create from html</a>
-      <a href="#coverage">coverage</a>
       <a href="#versus">vs the pptx skill</a>
-      <a href="#benchmark">the benchmark</a>
-      <a href="#story">story</a>
+      <a href="#benchmark">the race</a>
       <a href="#install">install</a>
       <a class="nav-gh" href="https://github.com/EveryInc/hands-on-deck">GitHub ↗</a>
     </div>
   </div>
 </nav>
 
-<header class="hero">
-  <div class="glow" aria-hidden="true"></div>
+<!-- ============ HERO · paper ============ -->
+<header class="hero w-paper vignette threaded" style="--txp: 64px; --tx: 64px;">
   <div class="wrap">
     <div class="hero-grid">
       <div>
@@ -698,12 +900,45 @@
   </div>
 </header>
 
-<section id="problem">
+<!-- ============ § 01 THE PROBLEM · paper ============ -->
+<section id="problem" class="w-paper threaded" style="--txp: 64px; --tx: 128px;">
   <div class="wrap sect-pad">
-    <div class="rv">
+    <div class="rv sect-head">
+      <div class="ghost-no" aria-hidden="true">01</div>
       <p class="eyebrow"><span class="secno">§ 01</span>The problem</p>
-      <h2 class="sect">A .pptx is a zip of XML.<br>There were two bad ways in.</h2>
-      <p class="lede">Agents that edit the XML directly hand-write OOXML — fragile, token-hungry, one namespace typo from a corrupt file. Agents that regenerate decks from scratch lose everything a template encodes. <strong>hands-on-deck takes a third path.</strong></p>
+      <h2 class="sect">The failure mode wasn't ugliness.<br>It was <em>unreviewable tedium</em>.</h2>
+      <p class="lede">Agents could already produce decks. The trouble started when you looked closely at what came back.</p>
+    </div>
+    <div class="prob-grid rv">
+      <div class="prob-copy">
+        <p>Hand an agent your branded template and it would <strong>ignore it and rebuild from scratch</strong> — new fonts, new colors, none of the decisions your designer already made. Titles drifted a quarter-inch from slide to slide. Footers vanished on some slides and not others.</p>
+        <p>None of it was dramatic. All of it meant <strong>a human nudging boxes, slide by slide, for an hour</strong> — exactly the work the agent was supposed to take away. Who wants to spend their afternoon fixing slide decks?</p>
+        <p>The fix isn't a better prompt. It's giving the agent <strong>the same fine-grained gestures a human operator has</strong> — and a way to check its own work before you ever see it.</p>
+      </div>
+      <div class="chip-stack">
+        <span class="chip-label">found in review — real decks</span>
+        <span class="chip">title x: 0.43" → 0.51" → 0.47" (drifts across slides)</span>
+        <span class="chip">given template: ignored — rebuilt from scratch</span>
+        <span class="chip">footer: missing on 7 slides</span>
+        <span class="chip">body text overflows its box on 11, 14, 19</span>
+        <span class="chip solid">× 23 more slides to review by hand</span>
+      </div>
+    </div>
+    <p class="prob-kicker rv">Fast to generate. <span class="hl">Slow to trust.</span></p>
+  </div>
+</section>
+
+<!-- ============ § 02 WHAT THE AGENT SEES · dark + xml wall ============ -->
+<section id="xml" class="w-dark glowed threaded" style="--txp: 128px; --tx: 48px;">
+  <div class="xmlwall" aria-hidden="true">
+    <pre id="xmlwall-pre"></pre>
+  </div>
+  <div class="wrap sect-pad">
+    <div class="rv sect-head">
+      <div class="ghost-no" aria-hidden="true">02</div>
+      <p class="eyebrow"><span class="secno">§ 02</span>What the agent actually sees</p>
+      <h2 class="sect">A .pptx is a zip of XML.<br>There were <em>two bad ways in</em>.</h2>
+      <p class="lede">You see a slide. The agent gets a ZIP file — and one ordinary slide is about <strong>2,000 lines of OOXML</strong> (you're looking at some, behind this text). Agents that edit the XML directly are one namespace typo from a corrupt file. Agents that regenerate decks from scratch lose everything a template encodes. <strong>hands-on-deck takes a third path.</strong></p>
     </div>
     <div class="paths rv">
       <div class="path bad">
@@ -719,13 +954,16 @@
         <p>The agent writes a JSON patch describing intent — replace this text, swap that image. The tool validates everything, then executes it atomically.</p>
       </div>
     </div>
+    <p class="zip-stat rv">five text boxes and an image ≈ <b>2,000 lines of markup</b> — the LLM compiles intent; the tool does the bytes. <b>The LLM never edits XML.</b></p>
   </div>
 </section>
 
-<section id="patch-model">
+<!-- ============ § 03 THE PATCH MODEL · dark ============ -->
+<section id="patch-model" class="w-dark threaded" style="--txp: 48px; --tx: 140px;">
   <div class="wrap sect-pad">
-    <div class="rv">
-      <p class="eyebrow"><span class="secno">§ 02</span>The patch model</p>
+    <div class="rv sect-head">
+      <div class="ghost-no" aria-hidden="true">03</div>
+      <p class="eyebrow"><span class="secno">§ 03</span>The patch model</p>
       <h2 class="sect">Say <em>what</em> should change.<br>Never touch the XML.</h2>
       <p class="lede">A patch is a list of operations against named shapes on numbered slides. One file, one apply, one atomic result.</p>
     </div>
@@ -769,10 +1007,53 @@
   </div>
 </section>
 
-<section id="principles">
+<!-- ============ § 04 THE FRAMING · paper · gesture map ============ -->
+<section id="cli" class="w-paper vignette threaded" style="--txp: 140px; --tx: 80px;">
   <div class="wrap sect-pad">
-    <div class="rv">
-      <p class="eyebrow"><span class="secno">§ 03</span>The differentiator</p>
+    <div class="rv sect-head">
+      <div class="ghost-no" aria-hidden="true">04</div>
+      <p class="eyebrow"><span class="secno">§ 04</span>The framing</p>
+      <h2 class="sect">We built PowerPoint. <em>As a CLI.</em></h2>
+      <p class="lede">The simplest way to understand the tool: take every gesture a human makes inside PowerPoint, and give the agent the same gesture as a command.</p>
+    </div>
+    <div class="gest rv">
+      <div class="gest-head"><span>your gesture</span><span></span><span>its gesture</span></div>
+      <div class="gest-row">
+        <div class="g-h">click a box and type</div><div class="g-a">→</div>
+        <div class="g-c">apply <span class="dim">{"op":</span><b>"set-text"</b><span class="dim">, …}</span></div>
+      </div>
+      <div class="gest-row">
+        <div class="g-h">drag a shape</div><div class="g-a">→</div>
+        <div class="g-c">apply <span class="dim">{"op":</span><b>"move"</b><span class="dim">, …}</span></div>
+      </div>
+      <div class="gest-row">
+        <div class="g-h">bold one word</div><div class="g-a">→</div>
+        <div class="g-c"><b>set-text</b> <span class="dim">"runs":[…]</span></div>
+      </div>
+      <div class="gest-row">
+        <div class="g-h">look at the slide</div><div class="g-a">→</div>
+        <div class="g-c"><b>render</b> <span class="dim">--slide 9 --crop</span></div>
+      </div>
+      <div class="gest-row">
+        <div class="g-h">undo</div><div class="g-a">→</div>
+        <div class="g-c"><span class="dim">patches are atomic;</span> <b>diff</b> <span class="dim">to verify</span></div>
+      </div>
+      <div class="gest-row">
+        <div class="g-h">spot something’s off</div><div class="g-a">→</div>
+        <div class="g-c"><b>inspect</b> <span class="dim">--issues (it lints itself)</span></div>
+      </div>
+      <div class="gest-final">every gesture you have, it now has.</div>
+    </div>
+    <p class="gest-kicker rv">Not a converter. Not a script. <span class="hl">The application itself.</span></p>
+  </div>
+</section>
+
+<!-- ============ § 05 THE MACHINERY · dark ============ -->
+<section id="principles" class="w-dark glowed threaded" style="--txp: 80px; --tx: 56px;">
+  <div class="wrap sect-pad">
+    <div class="rv sect-head">
+      <div class="ghost-no" aria-hidden="true">05</div>
+      <p class="eyebrow"><span class="secno">§ 05</span>The differentiator</p>
       <h2 class="sect">Built around how agents <em>actually fail</em></h2>
       <p class="lede">The interesting part isn't that it's a CLI — it's that <strong>every design choice targets a known LLM failure mode</strong>.</p>
     </div>
@@ -781,7 +1062,7 @@
 
       <div class="prin rv">
         <div class="prin-head">
-          <p class="prin-no">/ FAILURE MODE: HALLUCINATED REFERENCES</p>
+          <p class="prin-no"><b>/</b>failure mode: hallucinated references</p>
           <h3>Errors <em>teach</em> instead of scold</h3>
         </div>
         <div class="prin-body">
@@ -794,16 +1075,16 @@
             <pre><span class="t-red">PATCH REJECTED</span> <span class="t-dim">—</span> <span class="t-cream">2 validation error(s), nothing was modified:</span>
   <span class="t-dim">-</span> op[0] set-text: shape <span class="t-amber">'s9999'</span> not found on slide 0.
 <span class="t-cream">shapes on slide 0:</span>
-  <span class="t-amber">s16</span>    <span class="t-sage">PICTURE</span>      <span class="t-dim">[-1.25,-0.91 15.0x8.44in]</span>  (image image3.png)
-  <span class="t-amber">s18</span>    <span class="t-sage">AUTO_SHAPE</span>   <span class="t-dim">[7.00,5.17 2.6x0.25in]</span>  Session Management
-  <span class="t-amber">s19</span>    <span class="t-sage">TEXT_BOX</span>     <span class="t-dim">[0.60,1.00 4.0x0.4in]</span>  USING CLAUDE CODE</pre>
+  <span class="t-amber">s16</span>    <span class="t-cream">PICTURE</span>      <span class="t-dim">[-1.25,-0.91 15.0x8.44in]</span>  (image image3.png)
+  <span class="t-amber">s18</span>    <span class="t-cream">AUTO_SHAPE</span>   <span class="t-dim">[7.00,5.17 2.6x0.25in]</span>  Session Management
+  <span class="t-amber">s19</span>    <span class="t-cream">TEXT_BOX</span>     <span class="t-dim">[0.60,1.00 4.0x0.4in]</span>  USING CLAUDE CODE</pre>
           </div>
         </div>
       </div>
 
       <div class="prin rv">
         <div class="prin-head">
-          <p class="prin-no">/ FAILURE MODE: CASCADING PARTIAL STATE</p>
+          <p class="prin-no"><b>/</b>failure mode: cascading partial state</p>
           <h3>All errors at once, <em>atomically</em></h3>
         </div>
         <div class="prin-body">
@@ -813,7 +1094,7 @@
 
       <div class="prin rv">
         <div class="prin-head">
-          <p class="prin-no">/ FAILURE MODE: NO SPATIAL SENSE</p>
+          <p class="prin-no"><b>/</b>failure mode: no spatial sense</p>
           <h3>The linter watches the agent's <em>hands</em></h3>
         </div>
         <div class="prin-body">
@@ -823,7 +1104,7 @@
 
       <div class="prin rv">
         <div class="prin-head">
-          <p class="prin-no">/ FAILURE MODE: AGREEABLE OVERCONFIDENCE</p>
+          <p class="prin-no"><b>/</b>failure mode: agreeable overconfidence</p>
           <h3>Repair is <em>honest</em></h3>
         </div>
         <div class="prin-body">
@@ -833,7 +1114,7 @@
 
       <div class="prin rv">
         <div class="prin-head">
-          <p class="prin-no">/ FAILURE MODE: BLIND EDITING</p>
+          <p class="prin-no"><b>/</b>failure mode: blind editing</p>
           <h3>Verification is <em>visual</em></h3>
         </div>
         <div class="prin-body">
@@ -845,10 +1126,12 @@
   </div>
 </section>
 
-<section id="html">
+<!-- ============ § 06 THE CREATE PATH · dark ============ -->
+<section id="html" class="w-dark threaded" style="--txp: 56px; --tx: 124px;">
   <div class="wrap sect-pad">
-    <div class="rv">
-      <p class="eyebrow"><span class="secno">§ 04</span>The create path · <span class="new-flag">new</span></p>
+    <div class="rv sect-head">
+      <div class="ghost-no" aria-hidden="true">06</div>
+      <p class="eyebrow"><span class="secno">§ 06</span>The create path · <span class="new-flag">new</span></p>
       <h2 class="sect">Write the slide as a <em>webpage</em>.<br>Ship it as a slide.</h2>
       <p class="lede">Templates carry the brand, but free-form layout is where decks get <em>designed</em> — and HTML/CSS is the layout language agents are most fluent in. <code>html2patch</code> renders your HTML in a headless browser, reads back every measured box and computed style, and compiles it into an ordinary deck.py patch. <strong>The browser is a measuring engine. deck.py stays the only writer.</strong></p>
     </div>
@@ -858,14 +1141,14 @@
           <span class="dots"><i></i><i></i><i></i></span>
           <span class="fname">slide.html → patch.json → deck.pptx</span>
         </div>
-        <pre><span class="t-dim">&lt;</span><span class="t-sage">h1</span><span class="t-dim">&gt;</span><span class="t-cream">The deck builds </span><span class="t-dim">&lt;</span><span class="t-sage">em</span><span class="t-dim">&gt;</span><span class="t-cream">itself</span><span class="t-dim">&lt;/</span><span class="t-sage">em</span><span class="t-dim">&gt;</span><span class="t-cream"> now.</span><span class="t-dim">&lt;/</span><span class="t-sage">h1</span><span class="t-dim">&gt;</span>
-<span class="t-dim">&lt;</span><span class="t-sage">div</span> <span class="t-amber">class</span><span class="t-dim">=</span><span class="t-amber">"card"</span><span class="t-dim">&gt;</span><span class="t-cream">…gradient, radius, flexbox…</span><span class="t-dim">&lt;/</span><span class="t-sage">div</span><span class="t-dim">&gt;</span>
-<span class="t-dim">&lt;</span><span class="t-sage">img</span> <span class="t-amber">style</span><span class="t-dim">=</span><span class="t-amber">"object-fit:cover"</span> <span class="t-amber">src</span><span class="t-dim">=</span><span class="t-amber">"chart.png"</span><span class="t-dim">&gt;</span>
+        <pre><span class="t-dim">&lt;</span><span class="t-cream">h1</span><span class="t-dim">&gt;</span><span class="t-cream">The deck builds </span><span class="t-dim">&lt;</span><span class="t-cream">em</span><span class="t-dim">&gt;</span><span class="t-cream">itself</span><span class="t-dim">&lt;/</span><span class="t-cream">em</span><span class="t-dim">&gt;</span><span class="t-cream"> now.</span><span class="t-dim">&lt;/</span><span class="t-cream">h1</span><span class="t-dim">&gt;</span>
+<span class="t-dim">&lt;</span><span class="t-cream">div</span> <span class="t-amber">class</span><span class="t-dim">=</span><span class="t-amber">"card"</span><span class="t-dim">&gt;</span><span class="t-cream">…gradient, radius, flexbox…</span><span class="t-dim">&lt;/</span><span class="t-cream">div</span><span class="t-dim">&gt;</span>
+<span class="t-dim">&lt;</span><span class="t-cream">img</span> <span class="t-amber">style</span><span class="t-dim">=</span><span class="t-amber">"object-fit:cover"</span> <span class="t-amber">src</span><span class="t-dim">=</span><span class="t-amber">"chart.png"</span><span class="t-dim">&gt;</span>
 
 <span class="t-dim">$</span> <span class="t-cream">python html2patch.py slide.html --deck deck.pptx</span>
 <span class="t-dim">  → patch.json: 23 ops (add-slide, add-shape, add-picture…)</span>
 <span class="t-dim">$</span> <span class="t-cream">python deck.py deck.pptx apply patch.json --render img/</span>
-<span class="t-sage">  ✓ applied atomically · linted · rendered for your own eyes</span></pre>
+<span class="t-ok">  ✓ applied atomically · linted · rendered for your own eyes</span></pre>
       </div>
       <div class="op-notes rv">
         <div class="op-note">
@@ -890,11 +1173,14 @@
   </div>
 </section>
 
-<section id="coverage">
+<!-- ============ § 07 WHAT'S IN THE BOX · paper ============ -->
+<section id="coverage" class="w-paper threaded" style="--txp: 124px; --tx: 96px;">
   <div class="wrap sect-pad">
-    <div class="rv">
-      <p class="eyebrow"><span class="secno">§ 05</span>Coverage</p>
-      <h2 class="sect">The whole lifecycle of a deck</h2>
+    <div class="rv sect-head">
+      <div class="ghost-no" aria-hidden="true">07</div>
+      <p class="eyebrow"><span class="secno">§ 07</span>Coverage</p>
+      <h2 class="sect">What's <em>in the box</em></h2>
+      <p class="lede">The whole lifecycle of a deck — through one validated pipeline.</p>
     </div>
     <div class="cov-grid rv">
       <div class="cov">
@@ -926,12 +1212,14 @@
   </div>
 </section>
 
-<section id="versus">
+<!-- ============ § 08 THE COMPARISON · dark ============ -->
+<section id="versus" class="w-dark glowed threaded" style="--txp: 96px; --tx: 44px;">
   <div class="wrap sect-pad">
-    <div class="rv">
-      <p class="eyebrow"><span class="secno">§ 06</span>The comparison</p>
+    <div class="rv sect-head">
+      <div class="ghost-no" aria-hidden="true">08</div>
+      <p class="eyebrow"><span class="secno">§ 08</span>The comparison</p>
       <h2 class="sect">Same job. <em>Different machinery.</em></h2>
-      <p class="lede">Anthropic ships a pptx skill, and parts of it are genuinely good — the design guidance reads like a designer wrote it. The difference is architectural: their guardrails are <em>advice to the model</em>. hands-on-deck's are <strong>machinery in the tool</strong> — and advice can be ignored on exactly the slide that matters. We didn't leave that as an opinion — <a href="#benchmark">we raced them, blind-judged, four rounds — § 07</a>.</p>
+      <p class="lede">Anthropic ships a pptx skill, and parts of it are genuinely good — the design guidance reads like a designer wrote it. The difference is architectural: their guardrails are <em>advice to the model</em>. hands-on-deck's are <strong>machinery in the tool</strong> — and advice can be ignored on exactly the slide that matters. We didn't leave that as an opinion — <a href="#benchmark">we raced them, blind-judged, four rounds — § 09</a>.</p>
     </div>
 
     <div class="cmp rv">
@@ -999,10 +1287,12 @@
   </div>
 </section>
 
-<section id="benchmark">
+<!-- ============ § 09 THE RACE · dark ============ -->
+<section id="benchmark" class="w-dark threaded" style="--txp: 44px; --tx: 132px;">
   <div class="wrap sect-pad">
-    <div class="rv">
-      <p class="eyebrow"><span class="secno">§ 07</span>The benchmark · <span class="new-flag">new</span></p>
+    <div class="rv sect-head">
+      <div class="ghost-no" aria-hidden="true">09</div>
+      <p class="eyebrow"><span class="secno">§ 09</span>The benchmark</p>
       <h2 class="sect">So we made them <em>race</em></h2>
       <p class="lede">Claims are cheap, so we ran the experiment: same brief, same model, same plan-build-review budget — one agent on hands-on-deck, one on Anthropic's pptx skill. Three from-scratch decks and one heavy edit task, every round judged <strong>blind</strong> by three independent judges with randomized labels and rotated viewing order. Every finding the judges produced shipped as a release — most within hours.</p>
     </div>
@@ -1068,25 +1358,33 @@
   </div>
 </section>
 
-<section id="story">
+<!-- ============ § 10 PROVENANCE · paper ============ -->
+<section id="story" class="w-paper vignette threaded" style="--txp: 132px; --tx: 72px;">
   <div class="wrap sect-pad">
-    <div class="rv">
-      <p class="eyebrow"><span class="secno">§ 08</span>Provenance</p>
+    <div class="rv sect-head">
+      <div class="ghost-no" aria-hidden="true">10</div>
+      <p class="eyebrow"><span class="secno">§ 10</span>Provenance</p>
       <h2 class="sect">We use this <em>every week</em></h2>
       <p class="lede">hands-on-deck wasn't built as a demo. We built it to make <strong>our own decks</strong> — every training <a href="https://every.to/consulting">Every Consulting</a> runs ships with a branded deck, and our agents build them with hands-on-deck: same master template, same brand, same review standards, with agents doing the assembly, the edits, and the visual QA.</p>
       <p class="lede" style="margin-top:16px;">The hard parts are lessons. We've built <strong>hundreds of decks with Claude</strong>, and felt every way agents fail at PPTX along the way — those failures became this tool's design. The failure-mode list above isn't theory; <strong>it's field notes</strong>. Now it's yours.</p>
-      <div class="hero-actions" style="margin-top:34px;">
-        <a class="btn-gh" href="https://every.to/consulting">Work with Every Consulting ↗</a>
-      </div>
-      <p class="patch-kicker" style="margin-top:22px;">decks were one workflow. <b>automating your team's work is literally what we do.</b></p>
     </div>
+    <div class="built-stat rv">
+      <span class="lab">even the deck we present this tool with was built by the tool</span>
+      626 patch ops · 22,372 lines of XML written · 24 render-lint-fix cycles · 0 lines written by a human
+    </div>
+    <div class="hero-actions rv" style="margin-top:34px;">
+      <a class="btn-gh" href="https://every.to/consulting">Work with Every Consulting ↗</a>
+    </div>
+    <p class="patch-kicker rv" style="margin-top:22px;">decks were one workflow. <b>automating your team's work is literally what we do.</b></p>
   </div>
 </section>
 
-<section id="install">
+<!-- ============ § 11 INSTALL · paper ============ -->
+<section id="install" class="w-paper threaded" style="--txp: 72px; --tx: 110px;">
   <div class="wrap sect-pad">
-    <div class="rv">
-      <p class="eyebrow"><span class="secno">§ 09</span>Install</p>
+    <div class="rv sect-head">
+      <div class="ghost-no" aria-hidden="true">11</div>
+      <p class="eyebrow"><span class="secno">§ 11</span>Install</p>
       <h2 class="sect">Three ways in. <em>Pick yours.</em></h2>
       <p class="lede">hands-on-deck is packaged as an Agent Skill — but underneath it's just a CLI, so any agent that can run a shell command can use it.</p>
     </div>
@@ -1113,10 +1411,19 @@
   </div>
 </section>
 
-<footer>
+<!-- ============ CLOSE · paper ============ -->
+<section id="close" class="w-paper vignette threaded" style="--txp: 110px; --tx: 64px;">
+  <div class="wrap close-pad">
+    <p class="close-eyebrow rv">the close</p>
+    <h2 class="close-line rv">Go make your agent its <em>own</em> PowerPoint.</h2>
+    <p class="close-repo rv"><a href="https://github.com/EveryInc/hands-on-deck">github.com/EveryInc/hands-on-deck</a></p>
+  </div>
+</section>
+
+<footer class="w-paper">
   <div class="wrap foot-inner">
     <div>
-      <span class="t-amber">$</span> hands-on-deck — MIT license<br>
+      <span style="color:#915C0D;">$</span> hands-on-deck — MIT license<br>
       <a href="https://github.com/EveryInc/hands-on-deck">github.com/EveryInc/hands-on-deck</a>
     </div>
     <div class="foot-sig">
@@ -1150,6 +1457,18 @@
     });
   }, { threshold: 0.12, rootMargin: "0px 0px -40px 0px" });
   document.querySelectorAll(".rv").forEach(function (el) { io.observe(el); });
+
+  // the XML wall — § 02's background is real OOXML, repeated to fill
+  (function () {
+    var chunk =
+'<p:sp>\n  <p:nvSpPr>\n    <p:cNvPr id="12" name="s12"/>\n    <p:cNvSpPr txBox="1"/>\n    <p:nvPr/>\n  </p:nvSpPr>\n  <p:spPr>\n    <a:xfrm><a:off x="838200" y="365125"/>\n    <a:ext cx="7772400" cy="1325563"/></a:xfrm>\n    <a:prstGeom prst="rect"><a:avLst/></a:prstGeom>\n    <a:noFill/>\n  </p:spPr>\n  <p:txBody>\n    <a:bodyPr wrap="square" rtlCol="0" anchor="t">\n      <a:normAutofit/>\n    </a:bodyPr>\n    <a:lstStyle/>\n    <a:p>\n      <a:pPr algn="l"/>\n      <a:r>\n        <a:rPr lang="en-US" sz="3200" b="1" dirty="0">\n          <a:solidFill><a:srgbClr val="1C1612"/></a:solidFill>\n          <a:latin typeface="Fraunces"/>\n        </a:rPr>\n        <a:t>Q3 results</a:t>\n      </a:r>\n    </a:p>\n  </p:txBody>\n</p:sp>\n<p:pic>\n  <p:nvPicPr>\n    <p:cNvPr id="9" name="s9" descr="chart"/>\n    <p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr>\n  </p:nvPicPr>\n  <p:blipFill>\n    <a:blip r:embed="rId3"/>\n    <a:srcRect l="8333" r="8333"/>\n    <a:stretch><a:fillRect/></a:stretch>\n  </p:blipFill>\n  <p:spPr>\n    <a:xfrm><a:off x="7556500" y="2641600"/>\n    <a:ext cx="4445000" cy="3175000"/></a:xfrm>\n  </p:spPr>\n</p:pic>\n';
+    var pre = document.getElementById("xmlwall-pre");
+    if (pre) {
+      var s = "";
+      for (var i = 0; i < 14; i++) s += chunk;
+      pre.textContent = s;
+    }
+  })();
 </script>
 
 </body>
